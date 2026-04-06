@@ -40,7 +40,7 @@ def split_train_val(df: pd.DataFrame, val_days: int = 16) -> tuple:
 
 def prepare_xy(df: pd.DataFrame, target_col: str = "sales_log") -> tuple:
     """Prepare feature matrix and target vector."""
-    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "item_nbr"]
+    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     feature_cols = [c for c in numeric_cols if c not in exclude]
 

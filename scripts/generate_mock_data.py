@@ -165,9 +165,18 @@ def main():
     parser.add_argument("--end_date", default="2017-08-15")
     parser.add_argument("--test_start", default="2017-08-16")
     parser.add_argument("--test_end", default="2017-08-31")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing real data")
     args = parser.parse_args()
 
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Check if real data already exists
+    real_files = ["train.csv", "test.csv", "stores.csv", "oil.csv", "holidays_events.csv"]
+    existing = [f for f in real_files if (RAW_DATA_DIR / f).exists()]
+    if len(existing) == len(real_files) and not args.force:
+        print(f"Real data already exists at {RAW_DATA_DIR}")
+        print("Skipping mock data generation. Use --force to overwrite.")
+        return
 
     dates = pd.date_range(args.start_date, args.end_date, freq="D")
     test_dates = pd.date_range(args.test_start, args.test_end, freq="D")

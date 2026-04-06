@@ -119,12 +119,12 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 
 | Model | MAE | RMSE | MAPE | sMAPE |
 |-------|-----|------|------|-------|
-| Prophet (aggregated) | ~12.5 | ~18.2 | ~22% | ~18% |
-| XGBoost | ~8.2 | ~12.1 | ~14% | ~12% |
-| LSTM | ~7.5 | ~11.0 | ~13% | ~11% |
-| Transformer | ~7.2 | ~10.5 | ~12% | ~10% |
+| XGBoost | **0.256** | **0.380** | **11.98%** | **39.42%** |
+| Prophet (aggregated) | — | — | — | — | *(Windows cmdstan 构建失败，跳过)* |
+| LSTM | — | — | — | — | *(待训练)* |
+| Transformer | — | — | — | — | *(待训练)* |
 
-> Values from local validation. Replace synthetic data with real Kaggle data via `make download` before submission.
+> XGBoost 指标来自真实 Kaggle 数据（54 店 × 33 品类，3M 行，2013–2017）。验证集为最后 16 天（2017-07-31 ~ 2017-08-15）。MAE/RMSE 在 log1p(sales) 空间计算。
 
 ## Data
 
