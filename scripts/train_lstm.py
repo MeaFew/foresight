@@ -55,7 +55,7 @@ class TimeSeriesDataset(Dataset):
 
     def __init__(self, df: pd.DataFrame, seq_length: int = SEQ_LENGTH, encoder: dict | None = None, scaler: dict | None = None):
         self.seq_length = seq_length
-        self.df = df.sort_values(["store_nbr", "item_nbr", "date"]).reset_index(drop=True)
+        self.df = df.sort_values(["store_nbr", "family", "date"]).reset_index(drop=True)
 
         # Encode categoricals
         cat_cols = ["store_nbr", "family"]
@@ -70,7 +70,7 @@ class TimeSeriesDataset(Dataset):
 
         # Scale numeric features
         numeric_cols = [c for c in self.df.columns
-                        if c not in ["date", "sales", "sales_log", "id", "item_nbr", "store_nbr", "family"]
+                        if c not in ["date", "sales", "sales_log", "id", "store_nbr", "family"]
                         and self.df[c].dtype in [np.float64, np.int64]]
         self.numeric_cols = numeric_cols
         self.scalers = scaler or {}
@@ -83,19 +83,19 @@ class TimeSeriesDataset(Dataset):
                 self.df[col] = self.scalers[col].transform(self.df[[col]].fillna(0))
 
         # Group by series
-        self.series = list(self.df.groupby(["store_nbr", "item_nbr"]))
+        self.series = list(self.df.groupby(["store_nbr", "family"]))
         self.samples = []
-        for (store, item), group in self.series:
+        for (store, family), group in self.series:
             group = group.reset_index(drop=True)
             for i in range(seq_length, len(group)):
-                self.samples.append((store, item, i))
+                self.samples.append((store, family, i))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        store, item, end_idx = self.samples[idx]
-        group = self.df[(self.df["store_nbr"] == store) & (self.df["item_nbr"] == item)].reset_index(drop=True)
+        store, family, end_idx = self.samples[idx]
+        group = self.df[(self.df["store_nbr"] == store) & (self.df["family"] == family)].reset_index(drop=True)
 
         seq = group.iloc[end_idx - self.seq_length:end_idx]
         target = group.iloc[end_idx]["sales_log"]
