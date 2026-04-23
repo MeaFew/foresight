@@ -34,7 +34,6 @@ from config import (
     PATIENCE,
     RANDOM_STATE,
     REPORTS_DIR,
-    SEQ_LENGTH,
     TRANSFORMER_MODEL_PATH,
 )
 

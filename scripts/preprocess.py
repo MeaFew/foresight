@@ -19,11 +19,6 @@ from config import (
     CLEANED_TRAIN_CSV,
     PROCESSED_DATA_DIR,
     RAW_DATA_DIR,
-    RANDOM_STATE,
-    TEST_END,
-    TEST_START,
-    TRAIN_END,
-    TRAIN_START,
 )
 
 

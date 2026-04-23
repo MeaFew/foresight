@@ -149,7 +149,7 @@ def generate_sales(
                 records.append({
                     "date": date.strftime("%Y-%m-%d"),
                     "store_nbr": store_nbr,
-                    "item_nbr": item_nbr,
+                    "family": family,
                     "sales": sales,
                     "onpromotion": int(onpromo),
                 })

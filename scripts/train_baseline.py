@@ -18,7 +18,6 @@ from xgboost import XGBRegressor
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import (
-    CLEANED_TRAIN_CSV,
     FEATURES_TRAIN_CSV,
     MODEL_RESULTS_JSON,
     MODELS_DIR,
