@@ -82,7 +82,7 @@ data/external/*.csv
 # Models
 models/*.pt
 models/*.pth
-models/*.ckpt
+models/**/*.ckpt
 models/*.json
 models/*.joblib
 !models/.gitkeep

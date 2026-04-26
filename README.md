@@ -116,7 +116,7 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 | Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
 |-------|-----|------|------|--------|---------|
 | XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
-| Prophet (aggregated) | — | — | — | — | *(cmdstan build failed, skipped)* |
+| Prophet (aggregated) | — | — | — | — | *(skipped — cmdstan build fails on Windows; runs on Linux/macOS)* |
 | LSTM | **0.121** | **0.150** | **1.35%** | 1.34% | Subset (26K rows, top 20 groups) |
 | Transformer | **0.170** | **0.210** | **1.91%** | 1.88% | Subset (26K rows, top 20 groups) |
 
