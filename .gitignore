@@ -90,6 +90,7 @@ models/*.joblib
 # Reports / outputs
 reports/*.json
 reports/*.md
+reports/*.csv
 reports/checkpoints/
 !reports/.gitkeep
 
