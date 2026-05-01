@@ -86,6 +86,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
     df = df.sort_values(["store_nbr", "family", "date"])
+    # Data is explicitly sorted by store, family, date above -- ensures time-aware shift(1) is correct for lag/rolling features
 
     print("  Lag features ...")
     df = create_lag_features(df, lags=[1, 7, 14, 28, 364])

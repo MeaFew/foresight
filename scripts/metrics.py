@@ -28,7 +28,7 @@ def mape(y_true, y_pred):
 class TimeSeriesDataset(Dataset):
     """PyTorch Dataset for sliding-window time series."""
 
-    def __init__(self, df: pd.DataFrame, seq_length: int = SEQ_LENGTH, encoder: dict | None = None, scaler: dict | None = None):
+    def __init__(self, df: pd.DataFrame, seq_length: int = SEQ_LENGTH, encoder: dict | None = None, scalers: dict | None = None):
         self.seq_length = seq_length
         self.df = df.sort_values(["store_nbr", "family", "date"]).reset_index(drop=True)
 
@@ -48,7 +48,7 @@ class TimeSeriesDataset(Dataset):
                         if c not in ["date", "sales", "sales_log", "id", "store_nbr", "family"]
                         and self.df[c].dtype in [np.float64, np.int64]]
         self.numeric_cols = numeric_cols
-        self.scalers = scaler or {}
+        self.scalers = scalers or {}
         for col in numeric_cols:
             if col not in self.scalers:
                 sc = StandardScaler()

@@ -2,12 +2,12 @@
 
 Reads model results from reports/model_results.json (written by train_baseline.py,
 train_lstm.py, and train_transformer.py). Generates comparison charts and summary
-metrics for the README.
+metrics for the README. Computes residuals on-the-fly for diagnostic plots.
 """
 import json
+import sys
 from pathlib import Path
 
-import sys
 repo_root = Path(__file__).parents[1].resolve()
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
@@ -16,8 +16,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
-from config import MODEL_RESULTS_JSON, FORECAST_PLOT_PNG, RESIDUAL_PLOT_PNG, IMAGES_DIR
+from config import (
+    FEATURES_TRAIN_CSV,
+    FORECAST_PLOT_PNG,
+    IMAGES_DIR,
+    MODEL_RESULTS_JSON,
+    MODELS_DIR,
+    RESIDUAL_PLOT_PNG,
+)
 
 # Ensure images/ exists
 IMAGES_DIR.mkdir(exist_ok=True)
@@ -50,10 +58,11 @@ def print_metrics_table(results):
             mape = entry.get("mape_pct") if "mape_pct" in entry else entry.get("mape")
             smape = entry.get("smape")
             # Handle None/null metrics (e.g. Prophet unavailable on Windows)
-            mae_str = f"{mae:>8.4f}" if mae is not None else "       —"
-            rmse_str = f"{rmse:>8.4f}" if rmse is not None else "       —"
-            mape_str = f"{mape:>7.2%}" if mape is not None else "      —"
-            smape_str = f"{smape:>7.2%}" if smape is not None else "      —"
+            mae_str = f"{mae:>8.4f}" if mae is not None else "       --"
+            rmse_str = f"{rmse:>8.4f}" if rmse is not None else "       --"
+            # MAPE is already in percentage (0-100), format with f and append literal %
+            mape_str = f"{mape:>7.2f}%" if mape is not None else "      --"
+            smape_str = f"{smape:>7.2f}%" if smape is not None else "      --"
             print(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
             all_metrics.append({
                 "model": name,
@@ -92,7 +101,7 @@ def plot_metrics_bar(results):
     bars2 = ax.bar(x + width / 2, rmses, width, label="RMSE", color="#ff7f0e")
 
     ax.set_ylabel("Error (log scale)")
-    ax.set_title("Model Comparison — MAE & RMSE")
+    ax.set_title("Model Comparison -- MAE & RMSE")
     ax.set_xticks(x)
     ax.set_xticklabels(names)
     ax.legend()
@@ -113,12 +122,59 @@ def plot_metrics_bar(results):
     print(f"[OK] Saved forecast comparison: {FORECAST_PLOT_PNG}")
 
 
-def plot_residuals(results):
-    """Generate residual diagnostics plots for the best performing model."""
-    if not results:
-        return
+def compute_residuals_on_the_fly():
+    """Load XGBoost model and compute residuals on validation data.
 
-    # Find the model with lowest MAE
+    Returns (model_name, y_true, y_pred, residuals) or None if unavailable.
+    """
+    import joblib
+    from sklearn.metrics import mean_absolute_error
+
+    model_path = MODELS_DIR / "xgboost_baseline.joblib"
+    if not model_path.exists():
+        print("[SKIP] XGBoost model not found. Cannot compute residuals.")
+        return None
+
+    feature_path = FEATURES_TRAIN_CSV
+    if not feature_path.exists():
+        print("[SKIP] Feature file not found. Cannot compute residuals.")
+        return None
+
+    print("Computing residuals from XGBoost model ...")
+    df = pd.read_csv(feature_path, parse_dates=["date"])
+
+    # Same split as baseline training
+    max_date = df["date"].max()
+    val_start = max_date - pd.Timedelta(days=15)
+    val_df = df[df["date"] >= val_start].copy()
+
+    # Prepare features
+    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
+    numeric_cols = val_df.select_dtypes(include=[np.number]).columns.tolist()
+    feature_cols = [c for c in numeric_cols if c not in exclude]
+
+    X_val = val_df[feature_cols].fillna(0).values
+    y_true = val_df["sales_log"].values
+
+    # Load and predict
+    model = joblib.load(model_path)
+    y_pred = model.predict(X_val)
+    residuals = y_true - y_pred
+
+    # Print quick summary
+    mae_val = mean_absolute_error(y_true, y_pred)
+    print(f"  XGBoost validation: MAE={mae_val:.4f}, N={len(residuals):,}")
+
+    return ("XGBoost", y_true, y_pred, residuals)
+
+
+def plot_residuals(results):
+    """Generate residual diagnostics plots.
+
+    Tries to use pre-computed residuals from results JSON first,
+    then falls back to computing them on-the-fly from the XGBoost model.
+    """
+    # First, try to find pre-computed residuals in results
     best_metrics = None
     for key in ["baseline_results", "lstm_results", "transformer_results"]:
         for entry in results.get(key, []):
@@ -127,9 +183,21 @@ def plot_residuals(results):
                 if best_metrics is None or entry.get("mae", float("inf")) < best_metrics.get("mae", float("inf")):
                     best_metrics = entry
 
+    # If no pre-computed residuals, compute on-the-fly
     if best_metrics is None or "residuals" not in best_metrics:
-        print("[SKIP] No residual data available for plotting.")
-        return
+        computed = compute_residuals_on_the_fly()
+        if computed is None:
+            print("[SKIP] No residual data available for plotting.")
+            return
+        model_name, y_true, y_pred, residuals = computed
+        best_metrics = {
+            "model": model_name,
+            "residuals": residuals,
+            "y_true": y_true,
+            "y_pred": y_pred,
+        }
+    else:
+        residuals = np.array(best_metrics["residuals"])
 
     residuals = np.array(best_metrics["residuals"])
 
@@ -140,14 +208,14 @@ def plot_residuals(results):
     axes[0].axvline(0, color="red", linestyle="--", linewidth=1)
     axes[0].set_xlabel("Residual")
     axes[0].set_ylabel("Frequency")
-    axes[0].set_title(f"Residual Distribution — {best_metrics.get('model', 'Best')}")
+    axes[0].set_title(f"Residual Distribution -- {best_metrics.get('model', 'Best')}")
 
     # Residual vs Predicted scatter
     if "y_true" in best_metrics and "y_pred" in best_metrics:
-        y_true = np.array(best_metrics["y_true"])
-        y_pred = np.array(best_metrics["y_pred"])
-        res = y_true - y_pred
-        axes[1].scatter(y_pred, res, alpha=0.3, s=5, color="#1f77b4")
+        y_true_arr = np.array(best_metrics["y_true"])
+        y_pred_arr = np.array(best_metrics["y_pred"])
+        res = y_true_arr - y_pred_arr
+        axes[1].scatter(y_pred_arr, res, alpha=0.3, s=5, color="#1f77b4")
         axes[1].axhline(0, color="red", linestyle="--", linewidth=1)
         axes[1].set_xlabel("Predicted")
         axes[1].set_ylabel("Residual")

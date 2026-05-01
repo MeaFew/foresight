@@ -27,13 +27,13 @@ from config import (
     BATCH_SIZE,
     DROPOUT,
     FEATURES_TRAIN_CSV,
+    LEARNING_RATE,
     LSTM_MODEL_PATH,
     MAX_EPOCHS,
     MODEL_RESULTS_JSON,
     PATIENCE,
     RANDOM_STATE,
     REPORTS_DIR,
-    SEQ_LENGTH,
 )
 from scripts.metrics import TimeSeriesDataset, mape, smape
 
@@ -52,7 +52,7 @@ class LSTMForecastModule(pl.LightningModule):
         hidden_dim: int = 128,
         num_layers: int = 2,
         dropout: float = DROPOUT,
-        lr: float = 1e-3,
+        lr: float = LEARNING_RATE,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -113,7 +113,7 @@ def main():
 
     # Split by time
     max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=60)
+    val_start = max_date - pd.Timedelta(days=16)
     train_df = df[df["date"] < val_start].copy()
     val_df = df[df["date"] >= val_start].copy()
 
@@ -121,7 +121,7 @@ def main():
 
     # Datasets
     train_ds = TimeSeriesDataset(train_df)
-    val_ds = TimeSeriesDataset(val_df, encoder=train_ds.encoders, scaler=train_ds.scalers)
+    val_ds = TimeSeriesDataset(val_df, encoder=train_ds.encoders, scalers=train_ds.scalers)
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=0)
@@ -196,7 +196,7 @@ def main():
             all_results = json.load(f)
     else:
         all_results = {}
-    all_results["lstm_results"] = metrics
+    all_results["lstm_results"] = [metrics]
     with open(results_path, "w") as f:
         json.dump(all_results, f, indent=2)
 

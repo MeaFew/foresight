@@ -8,8 +8,6 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import CLEANED_TRAIN_CSV, FEATURES_TRAIN_CSV, PROCESSED_DATA_DIR
-
 
 @pytest.fixture(scope="module")
 def mock_data():
