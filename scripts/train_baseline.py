@@ -23,6 +23,7 @@ from config import (
     MODELS_DIR,
     RANDOM_STATE,
     REPORTS_DIR,
+    XGBOOST_MODEL_PATH,
 )
 from scripts.metrics import mape, smape
 
@@ -91,7 +92,7 @@ def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 
     # Save
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, MODELS_DIR / "xgboost_baseline.joblib")
+    joblib.dump(model, XGBOOST_MODEL_PATH)
     pd.DataFrame({"feature": feature_cols, "importance": model.feature_importances_}).to_csv(
         REPORTS_DIR / "xgb_feature_importance.csv", index=False
     )
@@ -102,6 +103,11 @@ def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
     """Train Prophet baseline on aggregated data."""
     print("\nTraining Prophet (aggregated) ...")
+
+    # Prophet requires cmdstan build tools — unavailable on Windows.
+    if sys.platform == "win32":
+        print("  Prophet unavailable (sys.platform=win32) — skipping")
+        return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 
     try:
         from prophet import Prophet

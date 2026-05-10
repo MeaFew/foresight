@@ -15,12 +15,14 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import (
+    BATCH_SIZE,
     FEATURES_TRAIN_CSV,
     LSTM_MODEL_PATH,
     MODEL_RESULTS_JSON,
     MODELS_DIR,
     REPORTS_DIR,
     TRANSFORMER_MODEL_PATH,
+    XGBOOST_MODEL_PATH,
 )
 from scripts.metrics import mape, smape, TimeSeriesDataset
 from scripts.train_lstm import LSTMForecastModule
@@ -60,7 +62,7 @@ def find_best_model():
 
 def load_xgboost_and_predict(df: pd.DataFrame):
     """Load XGBoost model and run inference."""
-    model_path = MODELS_DIR / "xgboost_baseline.joblib"
+    model_path = XGBOOST_MODEL_PATH
     if not model_path.exists():
         print(f"[SKIP] XGBoost model not found: {model_path}")
         return None
@@ -91,7 +93,7 @@ def load_lstm_and_predict(df: pd.DataFrame):
         encoder=meta["encoders"],
         scalers=meta["scalers"],
     )
-    loader = DataLoader(ds, batch_size=128, shuffle=False, num_workers=0)
+    loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     model = LSTMForecastModule(
         num_stores=len(meta["encoders"]["store_nbr"].classes_),
@@ -125,7 +127,7 @@ def load_transformer_and_predict(df: pd.DataFrame):
         encoder=meta["encoders"],
         scalers=meta["scalers"],
     )
-    loader = DataLoader(ds, batch_size=128, shuffle=False, num_workers=0)
+    loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     model = TransformerForecastModule(
         num_stores=len(meta["encoders"]["store_nbr"].classes_),

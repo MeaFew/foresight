@@ -111,9 +111,10 @@ def main():
     print(f"Loading data from {args.input} ...")
     df = pd.read_csv(args.input, parse_dates=["date"])
 
-    # Split by time
+    # Split by time — last N days as validation
+    val_days = 16
     max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=16)
+    val_start = max_date - pd.Timedelta(days=val_days - 1)
     train_df = df[df["date"] < val_start].copy()
     val_df = df[df["date"] >= val_start].copy()
 

@@ -22,12 +22,22 @@ jobs:
         run: ruff check scripts/ tests/ --ignore E501,E402
 
   test:
+    # NOTE: Test coverage is currently limited. The pipeline's core scripts
+    # (train_baseline, train_lstm, train_transformer) are integration-tested
+    # via `make verify` which validates end-to-end correctness. Unit test
+    # coverage for individual modules should be expanded in a future round.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements-test.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

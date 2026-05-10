@@ -4,7 +4,8 @@ scikit-learn>=1.3.0
 matplotlib>=3.7.0
 streamlit>=1.28.0
 
-# Time series (requires cmdstan build tools; install separately if needed)
+# Time series (requires cmdstan build tools; may fail on Windows)
+# Proceed without Prophet on Windows — use `make train-baseline` which skips it gracefully.
 prophet>=1.1.0
 
 # Tree-based models

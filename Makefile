@@ -65,4 +65,4 @@ format-check:
 	ruff format --check scripts/ dashboard/
 
 audit:
-	$(PYTHON) scripts/audit_consistency.py
+	python scripts/audit_consistency.py

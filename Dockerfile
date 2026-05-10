@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 LABEL org.opencontainers.image.title="Multivariate Time Series Forecasting"
 LABEL org.opencontainers.image.description="LSTM + Transformer + XGBoost pipeline for Store Sales forecasting"

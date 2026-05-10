@@ -21,6 +21,7 @@ FEATURES_TRAIN_CSV = PROCESSED_DATA_DIR / "features_train.csv"
 # Model checkpoints
 LSTM_MODEL_PATH = MODELS_DIR / "lstm_model.pt"
 TRANSFORMER_MODEL_PATH = MODELS_DIR / "transformer_model.pt"
+XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_baseline.joblib"
 
 # Reports
 MODEL_RESULTS_JSON = REPORTS_DIR / "model_results.json"

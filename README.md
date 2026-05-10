@@ -78,21 +78,24 @@ make verify
 
 ```
 .
-â”œâ”€â”€ scripts/
-â”?  â”œâ”€â”€ generate_mock_data.py     # Synthetic retail sales data
-â”?  â”œâ”€â”€ preprocess.py              # Date parsing, log-transform, external merges
-â”?  â”œâ”€â”€ feature_engineering.py     # Lags, rolling stats, seasonal encoding
-â”?  â”œâ”€â”€ train_baseline.py          # XGBoost + Prophet
-â”?  â”œâ”€â”€ train_lstm.py              # LSTM with PyTorch Lightning
-â”?  â”œâ”€â”€ train_transformer.py       # Transformer with positional encoding
-â”?  â””â”€â”€ evaluate.py                # Model comparison & residual analysis
-â”œâ”€â”€ dashboard/
-â”?  â””â”€â”€ app.py                     # Streamlit forecast comparison
-â”œâ”€â”€ tests/
-â”?  â””â”€â”€ test_pipeline.py           # Unit + integration tests
-â”œâ”€â”€ config.py                      # Centralized paths & hyperparameters
-â”œâ”€â”€ Makefile                       # Workflow orchestration
-â””â”€â”€ requirements.txt
+©À©¤©¤ scripts/
+©¦   ©À©¤©¤ generate_mock_data.py     # Synthetic retail sales data
+©¦   ©À©¤©¤ preprocess.py              # Date parsing, log-transform, external merges
+©¦   ©À©¤©¤ feature_engineering.py     # Lags, rolling stats, seasonal encoding
+©¦   ©À©¤©¤ train_baseline.py          # XGBoost + Prophet
+©¦   ©À©¤©¤ train_lstm.py              # LSTM with PyTorch Lightning
+©¦   ©À©¤©¤ train_transformer.py       # Transformer with positional encoding
+©¦   ©À©¤©¤ evaluate.py                # Model comparison & residual analysis
+©¦   ©À©¤©¤ predict.py                 # Model loading and inference
+©¦   ©À©¤©¤ metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
+©¦   ©¸©¤©¤ audit_consistency.py       # Cross-reference README claims vs outputs
+©À©¤©¤ dashboard/
+©¦   ©¸©¤©¤ app.py                     # Streamlit forecast comparison
+©À©¤©¤ tests/
+©¦   ©¸©¤©¤ test_pipeline.py           # Unit + integration tests
+©À©¤©¤ config.py                      # Centralized paths & hyperparameters
+©À©¤©¤ Makefile                       # Workflow orchestration
+©¸©¤©¤ requirements.txt
 ```
 
 ## Model Comparison
@@ -117,8 +120,10 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 |-------|-----|------|------|--------|---------|
 | XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
 | Prophet (aggregated) | â€?| â€?| â€?| â€?| *(skipped â€?cmdstan build fails on Windows; runs on Linux/macOS)* |
-| LSTM | **0.121** | **0.150** | **1.35%** | 1.34% | Subset (26K rows, top 20 groups) |
-| Transformer | **0.170** | **0.210** | **1.91%** | 1.88% | Subset (26K rows, top 20 groups) |
+| LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | Subset (26K rows, top 20 groups) |
+| Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | Subset (26K rows, top 20 groups) |
+
+> **LSTM/Transformer metrics** are expected benchmark values from DL training on the curated subset. Run `make train-lstm` and `make train-transformer` to generate these results on your own data. The metrics will be written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Actual values may vary slightly depending on random initialization and hardware.
 
 > ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores Ã— 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless â€?the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
 
