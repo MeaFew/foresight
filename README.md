@@ -56,7 +56,13 @@ Dashboard ──> Forecast comparison, error distribution, residual analysis
 ## Quick Start
 
 ```bash
-# Run full pipeline (requires Kaggle data in data/raw/)
+git clone https://github.com/MeaFew/multivariate-timeseries-forecasting.git
+cd multivariate-timeseries-forecasting
+
+# Download real dataset (GitHub Releases, ~21MB)
+bash download_data.sh
+
+# Run full pipeline
 python run_all.py
 
 # Or step by step
@@ -70,7 +76,7 @@ make evaluate
 # Launch dashboard
 make dashboard
 
-# Run tests
+# Quality gates
 make verify
 ```
 
