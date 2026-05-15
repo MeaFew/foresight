@@ -1,14 +1,8 @@
-# Multivariate Time Series Forecasting
-
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
   <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
   <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting/actions"><img src="https://github.com/MeaFew/multivariate-timeseries-forecasting/workflows/CI/badge.svg" alt="CI"></a>
-</p>
-
-<p align="center">
-  <b>ÖĞÎÄ</b> | <a href="./README.en.md">English</a>
 </p>
 
 ## Overview
@@ -88,24 +82,24 @@ make verify
 
 ```
 .
-©À©¤©¤ scripts/
-©¦   ©À©¤©¤ generate_mock_data.py     # Synthetic retail sales data
-©¦   ©À©¤©¤ preprocess.py              # Date parsing, log-transform, external merges
-©¦   ©À©¤©¤ feature_engineering.py     # Lags, rolling stats, seasonal encoding
-©¦   ©À©¤©¤ train_baseline.py          # XGBoost + Prophet
-©¦   ©À©¤©¤ train_lstm.py              # LSTM with PyTorch Lightning
-©¦   ©À©¤©¤ train_transformer.py       # Transformer with positional encoding
-©¦   ©À©¤©¤ evaluate.py                # Model comparison & residual analysis
-©¦   ©À©¤©¤ predict.py                 # Model loading and inference
-©¦   ©À©¤©¤ metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
-©¦   ©¸©¤©¤ audit_consistency.py       # Cross-reference README claims vs outputs
-©À©¤©¤ dashboard/
-©¦   ©¸©¤©¤ app.py                     # Streamlit forecast comparison
-©À©¤©¤ tests/
-©¦   ©¸©¤©¤ test_pipeline.py           # Unit + integration tests
-©À©¤©¤ config.py                      # Centralized paths & hyperparameters
-©À©¤©¤ Makefile                       # Workflow orchestration
-©¸©¤©¤ requirements.txt
+â”œâ”€â”€ scripts/
+â”‚   â”œâ”€â”€ generate_mock_data.py     # Synthetic retail sales data
+â”‚   â”œâ”€â”€ preprocess.py              # Date parsing, log-transform, external merges
+â”‚   â”œâ”€â”€ feature_engineering.py     # Lags, rolling stats, seasonal encoding
+â”‚   â”œâ”€â”€ train_baseline.py          # XGBoost + Prophet
+â”‚   â”œâ”€â”€ train_lstm.py              # LSTM with PyTorch Lightning
+â”‚   â”œâ”€â”€ train_transformer.py       # Transformer with positional encoding
+â”‚   â”œâ”€â”€ evaluate.py                # Model comparison & residual analysis
+â”‚   â”œâ”€â”€ predict.py                 # Model loading and inference
+â”‚   â”œâ”€â”€ metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
+â”‚   â””â”€â”€ audit_consistency.py       # Cross-reference README claims vs outputs
+â”œâ”€â”€ dashboard/
+â”‚   â””â”€â”€ app.py                     # Streamlit forecast comparison
+â”œâ”€â”€ tests/
+â”‚   â””â”€â”€ test_pipeline.py           # Unit + integration tests
+â”œâ”€â”€ config.py                      # Centralized paths & hyperparameters
+â”œâ”€â”€ Makefile                       # Workflow orchestration
+â””â”€â”€ requirements.txt
 ```
 
 ## Model Comparison
@@ -116,10 +110,10 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 
 | Reference | RMSLE | Notes |
 |-----------|-------|-------|
-| Kaggle Starter (naive) | ~0.90â€?.20 | Historical mean / naive forecast |
-| Competition Median | ~0.60â€?.80 | Basic lag features + XGBoost |
-| Competition Top 10% | ~0.45â€?.50 | Complex feature engineering |
-| Competition Top 1% | ~0.35â€?.40 | Fine-grained external data usage |
+| Kaggle Starter (naive) | ~0.90-1.20 | Historical mean / naive forecast |
+| Competition Median | ~0.60-0.80 | Basic lag features + XGBoost |
+| Competition Top 10% | ~0.45-0.50 | Complex feature engineering |
+| Competition Top 1% | ~0.35-0.40 | Fine-grained external data usage |
 | **This Project (XGBoost CV)** | **~0.24** | Local 5-fold CV on log-transformed sales |
 
 > Note: RMSLE values are not directly comparable across log-transformed vs. original scale. The Kaggle competition uses original-scale RMSLE. Local validation uses log-scale MAE/MAPE for training stability.
@@ -129,13 +123,13 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 | Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
 |-------|-----|------|------|--------|---------|
 | XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
-| Prophet (aggregated) | â€?| â€?| â€?| â€?| *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
+| Prophet (aggregated) | â€” | â€” | â€” | â€” | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
 | LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | Subset (26K rows, top 20 groups) |
 | Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | Subset (26K rows, top 20 groups) |
 
 > **LSTM/Transformer metrics** are expected benchmark values from DL training on the curated subset. Run `make train-lstm` and `make train-transformer` to generate these results on your own data. The metrics will be written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Actual values may vary slightly depending on random initialization and hardware.
 
-> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores Ã— 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless â€?the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
+> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores x 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless â€” the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
 
 ## Data
 
@@ -147,14 +141,14 @@ The project uses the **Kaggle Store Sales - Time Series Forecasting** dataset:
 
 For local testing without Kaggle credentials, run `python scripts/generate_mock_data.py` to create a statistically similar synthetic dataset.
 
-## Ïà¹ØÏîÄ¿
+## Related Projects
 
-| ÏîÄ¿ | ²Ö¿â | ¼ò½é |
-|------|------|------|
-| µçÉÌÓÃ»§ĞĞÎª·ÖÎö | [MeaFew/ecommerce-user-analytics](https://github.com/MeaFew/ecommerce-user-analytics) | 2,900ÍòÌõÕæÊµÓÃ»§ĞĞÎªÊı¾İ£¬10´ó·ÖÎöÄ£¿é |
-| ÓªÏú¹éÒòÓëÔ¤ËãÓÅ»¯ | [MeaFew/marketing-attribution-mmm](https://github.com/MeaFew/marketing-attribution-mmm) | MMM + ¶à´¥µã¹éÒò + Ô¤ËãÓÅ»¯ |
-| ĞÅÓÃ·çÏÕÆÀ·Ö | [MeaFew/credit-risk-scoring](https://github.com/MeaFew/credit-risk-scoring) | WOE/IV + XGBoost/LightGBM + SHAP ¿É½âÊÍĞÔ |
+| Project | Repo | Description |
+|---------|------|-------------|
+| E-commerce User Analytics | [MeaFew/ecommerce-user-analytics](https://github.com/MeaFew/ecommerce-user-analytics) | 29M real user behavior records, 10 analytical modules |
+| Marketing Attribution & MMM | [MeaFew/marketing-attribution-mmm](https://github.com/MeaFew/marketing-attribution-mmm) | MMM + multi-touch attribution + budget optimization |
+| Credit Risk Scoring | [MeaFew/credit-risk-scoring](https://github.com/MeaFew/credit-risk-scoring) | WOE/IV + XGBoost/LightGBM + SHAP interpretability |
 
-## Ğí¿ÉÖ¤
+## License
 
 MIT
