@@ -2,10 +2,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/PyTorch-2.0-red?logo=pytorch&logoColor=white" alt="PyTorch">
+  <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
   <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
-  <img src="https://img.shields.io/badge/Prophet-1.1-blue?logo=facebook&logoColor=white" alt="Prophet">
-  <img src="https://img.shields.io/badge/CI-passing-brightgreen?logo=githubactions&logoColor=white" alt="CI">
+  <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting/actions"><img src="https://github.com/MeaFew/multivariate-timeseries-forecasting/workflows/CI/badge.svg" alt="CI"></a>
 </p>
 
 ## Overview
@@ -114,16 +113,14 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 
 ### Results
 
-| Model | MAE | RMSE | MAPE | sMAPE | Notes |
-|-------|-----|------|------|-------|-------|
-| XGBoost | **0.256** | **0.380** | **11.98%** | **39.42%** | 5-fold CV on full dataset (3M rows) |
-| Prophet (aggregated) | — | — | — | — | *(Windows cmdstan 构建失败，跳过)* |
-| LSTM | **0.121** | **0.150** | **1.35%** | **1.34%** | Subset validation (top 20 store-family, 26K rows) |
-| Transformer | **0.170** | **0.210** | **1.91%** | **1.88%** | Subset validation (top 20 store-family, 26K rows) |
+| Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
+|-------|-----|------|------|--------|---------|
+| XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
+| Prophet (aggregated) | — | — | — | — | *(cmdstan build failed, skipped)* |
+| LSTM | **0.121** | **0.150** | **1.35%** | 1.34% | Subset (26K rows, top 20 groups) |
+| Transformer | **0.170** | **0.210** | **1.91%** | 1.88% | Subset (26K rows, top 20 groups) |
 
-> XGBoost 指标来自完整真实数据（54 店 × 33 品类，~3M 行，2013–2017）。验证集为最后 16 天（2017-07-31 ~ 2017-08-15）。MAE/RMSE/MAPE 在 log1p(sales) 空间计算。
->
-> LSTM / Transformer 指标来自 subset 快速验证（销量 top 20 store-family 组合，26,400 行，2014–2017）。因完整数据 235 万行导致训练时间过长，故取子集以验证 DL 管线可正常收敛。验证集为最后 60 天。
+> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores × 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless — the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
 
 ## Data
 

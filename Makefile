@@ -1,9 +1,9 @@
-.PHONY: all setup preprocess features train evaluate dashboard verify clean
+.PHONY: all setup preprocess features train-baseline train-lstm train-transformer train-all evaluate dashboard verify clean
 
 PYTHON := python
 
 # ── One-shot pipeline ─────────────────────────────────────────────
-all: preprocess features train evaluate
+all: preprocess features train-all evaluate
 
 # ── Environment ───────────────────────────────────────────────────
 setup:
