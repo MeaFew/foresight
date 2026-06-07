@@ -46,9 +46,12 @@ verify: lint test
 	@echo "All quality gates passed"
 
 # ── Utilities ─────────────────────────────────────────────────────
+# Note: data/processed/ can accumulate >1.4GB of generated CSVs.
+# Run `make clean` to free disk space.
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "lightning_logs" -exec rm -rf {} + 2>/dev/null || true
+	rm -f data/processed/*.csv 2>/dev/null || true

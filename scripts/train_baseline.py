@@ -24,6 +24,7 @@ from config import (
     RANDOM_STATE,
     REPORTS_DIR,
 )
+from scripts.metrics import mape, smape
 
 
 def split_train_val(df: pd.DataFrame, val_days: int = 16) -> tuple:
@@ -46,17 +47,6 @@ def prepare_xy(df: pd.DataFrame, target_col: str = "sales_log") -> tuple:
     X = df[feature_cols].fillna(0)
     y = df[target_col].values
     return X, y, feature_cols
-
-
-def mape(y_true, y_pred):
-    """Mean Absolute Percentage Error."""
-    mask = y_true != 0
-    return np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-
-
-def smape(y_true, y_pred):
-    """Symmetric MAPE."""
-    return 100 * np.mean(2 * np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred) + 1e-8))
 
 
 def evaluate(y_true, y_pred, name: str) -> dict:

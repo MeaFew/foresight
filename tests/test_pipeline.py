@@ -16,19 +16,16 @@ def mock_data():
     """Generate small mock dataset for testing."""
     dates = pd.date_range("2022-01-01", "2023-03-31", freq="D")  # ~15 months for lag-364
     stores = [1, 2]
-    items = [101, 102]
 
     records = []
     for store in stores:
-        for item in items:
-            for date in dates:
-                records.append({
-                    "date": date,
-                    "store_nbr": store,
-                    "item_nbr": item,
-                    "sales": np.random.poisson(50),
-                    "onpromotion": np.random.choice([0, 1]),
-                })
+        for date in dates:
+            records.append({
+                "date": date,
+                "store_nbr": store,
+                "sales": np.random.poisson(50),
+                "onpromotion": np.random.choice([0, 1]),
+            })
     df = pd.DataFrame(records)
     df["date"] = pd.to_datetime(df["date"])
     df["sales_log"] = np.log1p(df["sales"])
@@ -89,7 +86,7 @@ class TestFeatureEngineering:
 class TestDataset:
     def test_dataset_length(self, mock_data):
         pytest.importorskip("pytorch_lightning")
-        from scripts.train_lstm import TimeSeriesDataset
+        from scripts.metrics import TimeSeriesDataset
         df = mock_data.copy()
         df["family"] = "GROCERY"
         ds = TimeSeriesDataset(df, seq_length=7)
@@ -97,7 +94,7 @@ class TestDataset:
 
     def test_dataset_output_shape(self, mock_data):
         pytest.importorskip("pytorch_lightning")
-        from scripts.train_lstm import TimeSeriesDataset
+        from scripts.metrics import TimeSeriesDataset
         import torch
         df = mock_data.copy()
         df["family"] = "GROCERY"

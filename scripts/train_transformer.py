@@ -37,8 +37,7 @@ from config import (
     TRANSFORMER_MODEL_PATH,
 )
 
-# Reuse dataset from LSTM
-from train_lstm import TimeSeriesDataset, mape, smape
+from scripts.metrics import TimeSeriesDataset, mape, smape
 
 pl.seed_everything(RANDOM_STATE, workers=True)
 
