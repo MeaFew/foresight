@@ -42,7 +42,7 @@ lint:
 test:
 	pytest tests/ -v --tb=short
 
-verify: lint test
+verify: lint format-check test audit
 	@echo "All quality gates passed"
 
 # ── Utilities ─────────────────────────────────────────────────────
@@ -55,3 +55,14 @@ clean:
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "lightning_logs" -exec rm -rf {} + 2>/dev/null || true
 	rm -f data/processed/*.csv 2>/dev/null || true
+
+# === Quality gates (extended) ===
+
+format:
+	ruff format scripts/ dashboard/
+
+format-check:
+	ruff format --check scripts/ dashboard/
+
+audit:
+	$(PYTHON) scripts/audit_consistency.py
