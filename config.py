@@ -58,10 +58,10 @@ DROPOUT = 0.1
 
 # ── Time series-specific ──────────────────────────────────────────
 # Date range (Store Sales dataset)
-TRAIN_START = "2013-01-01"
-TRAIN_END = "2017-08-15"
-TEST_START = "2017-08-16"
-TEST_END = "2017-08-31"
+# (unused, reserved for future) TRAIN_START = "2013-01-01"
+# (unused, reserved for future) TRAIN_END = "2017-08-15"
+# (unused, reserved for future) TEST_START = "2017-08-16"
+# (unused, reserved for future) TEST_END = "2017-08-31"
 
 # External regressors
 # (unused, reserved for future) USE_PROMO = True

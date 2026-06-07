@@ -137,7 +137,7 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
         forecast.to_csv(REPORTS_DIR / "prophet_forecast.csv", index=False)
 
         return model, metrics
-    except Exception as e:
+    except (ImportError, AttributeError, RuntimeError) as e:
         print(f"  Prophet unavailable ({type(e).__name__}) — skipping")
         return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 

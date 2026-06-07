@@ -45,12 +45,23 @@ def print_metrics_table(results):
         entries = results.get(key, [])
         for entry in entries:
             name = entry.get("model", key)
-            mae = entry.get("mae", float("nan"))
-            rmse = entry.get("rmse", float("nan"))
-            mape = entry.get("mape", float("nan"))
-            smape = entry.get("smape", float("nan"))
-            print(f"{name:<20} {mae:>8.4f} {rmse:>8.4f} {mape:>7.2%} {smape:>7.2%}")
-            all_metrics.append({"model": name, "mae": mae, "rmse": rmse, "mape": mape, "smape": smape})
+            mae = entry.get("mae")
+            rmse = entry.get("rmse")
+            mape = entry.get("mape_pct") if "mape_pct" in entry else entry.get("mape")
+            smape = entry.get("smape")
+            # Handle None/null metrics (e.g. Prophet unavailable on Windows)
+            mae_str = f"{mae:>8.4f}" if mae is not None else "       —"
+            rmse_str = f"{rmse:>8.4f}" if rmse is not None else "       —"
+            mape_str = f"{mape:>7.2%}" if mape is not None else "      —"
+            smape_str = f"{smape:>7.2%}" if smape is not None else "      —"
+            print(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
+            all_metrics.append({
+                "model": name,
+                "mae": mae if mae is not None else float("nan"),
+                "rmse": rmse if rmse is not None else float("nan"),
+                "mape": mape if mape is not None else float("nan"),
+                "smape": smape if smape is not None else float("nan"),
+            })
 
     print("-" * 70)
     print()
