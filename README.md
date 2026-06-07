@@ -22,7 +22,7 @@ End-to-end deep learning pipeline for multivariate time series forecasting. Benc
 ## Architecture
 
 ```
-Raw CSVs (train, stores, items, oil, holidays)
+Raw CSVs (train, stores, oil, holidays, transactions)
     |
     v
 Preprocess ──> Date features, log-transform, external merges
@@ -38,7 +38,7 @@ Feature Eng ──> Lags, rolling mean/std, seasonal encoding, promo features
 Evaluate ──> MAE, RMSE, MAPE, sMAPE, residual analysis
     |
     v
-Dashboard ──> Forecast comparison, error distribution, attention heatmap
+Dashboard ──> Forecast comparison, error distribution, residual analysis
 ```
 
 ## Tech Stack
@@ -79,17 +79,17 @@ make verify
 ```
 .
 ├── scripts/
-│   ├── generate_mock_data.py     # Synthetic retail sales data
-│   ├── preprocess.py              # Date parsing, log-transform, external merges
-│   ├── feature_engineering.py     # Lags, rolling stats, seasonal encoding
-│   ├── train_baseline.py          # XGBoost + Prophet
-│   ├── train_lstm.py              # LSTM with PyTorch Lightning
-│   ├── train_transformer.py       # Transformer with positional encoding
-│   └── evaluate.py                # Model comparison & residual analysis
+�?  ├── generate_mock_data.py     # Synthetic retail sales data
+�?  ├── preprocess.py              # Date parsing, log-transform, external merges
+�?  ├── feature_engineering.py     # Lags, rolling stats, seasonal encoding
+�?  ├── train_baseline.py          # XGBoost + Prophet
+�?  ├── train_lstm.py              # LSTM with PyTorch Lightning
+�?  ├── train_transformer.py       # Transformer with positional encoding
+�?  └── evaluate.py                # Model comparison & residual analysis
 ├── dashboard/
-│   └── app.py                     # Streamlit forecast comparison
+�?  └── app.py                     # Streamlit forecast comparison
 ├── tests/
-│   └── test_pipeline.py           # Unit + integration tests
+�?  └── test_pipeline.py           # Unit + integration tests
 ├── config.py                      # Centralized paths & hyperparameters
 ├── Makefile                       # Workflow orchestration
 └── requirements.txt
@@ -103,10 +103,10 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 
 | Reference | RMSLE | Notes |
 |-----------|-------|-------|
-| Kaggle Starter (naive) | ~0.90–1.20 | Historical mean / naive forecast |
-| Competition Median | ~0.60–0.80 | Basic lag features + XGBoost |
-| Competition Top 10% | ~0.45–0.50 | Complex feature engineering |
-| Competition Top 1% | ~0.35–0.40 | Fine-grained external data usage |
+| Kaggle Starter (naive) | ~0.90�?.20 | Historical mean / naive forecast |
+| Competition Median | ~0.60�?.80 | Basic lag features + XGBoost |
+| Competition Top 10% | ~0.45�?.50 | Complex feature engineering |
+| Competition Top 1% | ~0.35�?.40 | Fine-grained external data usage |
 | **This Project (XGBoost CV)** | **~0.24** | Local 5-fold CV on log-transformed sales |
 
 > Note: RMSLE values are not directly comparable across log-transformed vs. original scale. The Kaggle competition uses original-scale RMSLE. Local validation uses log-scale MAE/MAPE for training stability.
@@ -116,11 +116,11 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 | Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
 |-------|-----|------|------|--------|---------|
 | XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
-| Prophet (aggregated) | — | — | — | — | *(skipped — cmdstan build fails on Windows; runs on Linux/macOS)* |
+| Prophet (aggregated) | �?| �?| �?| �?| *(skipped �?cmdstan build fails on Windows; runs on Linux/macOS)* |
 | LSTM | **0.121** | **0.150** | **1.35%** | 1.34% | Subset (26K rows, top 20 groups) |
 | Transformer | **0.170** | **0.210** | **1.91%** | 1.88% | Subset (26K rows, top 20 groups) |
 
-> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores × 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless — the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
+> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores × 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless �?the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
 
 ## Data
 

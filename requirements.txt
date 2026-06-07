@@ -7,12 +7,14 @@ streamlit>=1.28.0
 # Time series (requires cmdstan build tools; install separately if needed)
 prophet>=1.1.0
 
+# Tree-based models
+xgboost>=2.0.0
+
 # Deep learning
 torch>=2.1.0
 pytorch-lightning>=2.1.0
 
 # Utilities
-tqdm>=4.66.0
 joblib>=1.3.0
 
 # Testing & linting
