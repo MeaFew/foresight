@@ -26,7 +26,6 @@ from torch.utils.data import DataLoader, Dataset
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import (
     BATCH_SIZE,
-    CLEANED_TRAIN_CSV,
     DROPOUT,
     FEATURES_TRAIN_CSV,
     LSTM_MODEL_PATH,
