@@ -180,7 +180,7 @@ def main():
 
     # Split by time
     max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=15)
+    val_start = max_date - pd.Timedelta(days=60)
     train_df = df[df["date"] < val_start].copy()
     val_df = df[df["date"] >= val_start].copy()
 

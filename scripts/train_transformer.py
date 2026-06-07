@@ -136,7 +136,7 @@ def main():
     df = pd.read_csv(args.input, parse_dates=["date"])
 
     max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=15)
+    val_start = max_date - pd.Timedelta(days=60)
     train_df = df[df["date"] < val_start].copy()
     val_df = df[df["date"] >= val_start].copy()
 

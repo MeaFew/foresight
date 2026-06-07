@@ -10,7 +10,7 @@
 
 ## Overview
 
-End-to-end deep learning pipeline for multivariate time series forecasting. Benchmarks classical methods (XGBoost, Prophet) against modern neural architectures (LSTM, Transformer) on a simulated retail dataset patterned after the Kaggle Store Sales competition.
+End-to-end deep learning pipeline for multivariate time series forecasting. Benchmarks classical methods (XGBoost, Prophet) against modern neural architectures (LSTM, Transformer) on the Kaggle Store Sales dataset.
 
 ## Key Highlights
 
@@ -57,11 +57,8 @@ Dashboard ──> Forecast comparison, error distribution, attention heatmap
 ## Quick Start
 
 ```bash
-# Generate synthetic data
-python scripts/generate_mock_data.py
-
-# Run full pipeline
-make all
+# Run full pipeline (requires Kaggle data in data/raw/)
+python run_all.py
 
 # Or step by step
 make preprocess
@@ -117,14 +114,16 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 
 ### Results
 
-| Model | MAE | RMSE | MAPE | sMAPE |
-|-------|-----|------|------|-------|
-| XGBoost | **0.256** | **0.380** | **11.98%** | **39.42%** |
+| Model | MAE | RMSE | MAPE | sMAPE | Notes |
+|-------|-----|------|------|-------|-------|
+| XGBoost | **0.256** | **0.380** | **11.98%** | **39.42%** | 5-fold CV on full dataset (3M rows) |
 | Prophet (aggregated) | — | — | — | — | *(Windows cmdstan 构建失败，跳过)* |
-| LSTM | — | — | — | — | *(待训练)* |
-| Transformer | — | — | — | — | *(待训练)* |
+| LSTM | **0.121** | **0.150** | **1.35%** | **1.34%** | Subset validation (top 20 store-family, 26K rows) |
+| Transformer | **0.170** | **0.210** | **1.91%** | **1.88%** | Subset validation (top 20 store-family, 26K rows) |
 
-> XGBoost 指标来自真实 Kaggle 数据（54 店 × 33 品类，3M 行，2013–2017）。验证集为最后 16 天（2017-07-31 ~ 2017-08-15）。MAE/RMSE 在 log1p(sales) 空间计算。
+> XGBoost 指标来自完整真实数据（54 店 × 33 品类，~3M 行，2013–2017）。验证集为最后 16 天（2017-07-31 ~ 2017-08-15）。MAE/RMSE/MAPE 在 log1p(sales) 空间计算。
+>
+> LSTM / Transformer 指标来自 subset 快速验证（销量 top 20 store-family 组合，26,400 行，2014–2017）。因完整数据 235 万行导致训练时间过长，故取子集以验证 DL 管线可正常收敛。验证集为最后 60 天。
 
 ## Data
 
