@@ -32,7 +32,7 @@ def load_raw_data() -> dict[str, pd.DataFrame]:
     files = {
         "train": RAW_DATA_DIR / "train.csv",
         "stores": RAW_DATA_DIR / "stores.csv",
-        "items": RAW_DATA_DIR / "items.csv",
+        "transactions": RAW_DATA_DIR / "transactions.csv",
         "oil": RAW_DATA_DIR / "oil.csv",
         "holidays": RAW_DATA_DIR / "holidays_events.csv",
         "test": RAW_DATA_DIR / "test.csv",
@@ -53,7 +53,7 @@ def preprocess_sales(df: pd.DataFrame) -> pd.DataFrame:
     df["date"] = pd.to_datetime(df["date"])
 
     # Sort
-    df = df.sort_values(["store_nbr", "item_nbr", "date"]).reset_index(drop=True)
+    df = df.sort_values(["store_nbr", "family", "date"]).reset_index(drop=True)
 
     # Log transform sales (add 1 to handle zeros)
     if "sales" in df.columns:
@@ -112,9 +112,11 @@ def preprocess(data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     if "stores" in data:
         sales = sales.merge(data["stores"], on="store_nbr", how="left")
 
-    # Merge item metadata
-    if "items" in data:
-        sales = sales.merge(data["items"], on="item_nbr", how="left")
+    # Merge transactions
+    if "transactions" in data:
+        trans = data["transactions"].copy()
+        trans["date"] = pd.to_datetime(trans["date"])
+        sales = sales.merge(trans[["date", "store_nbr", "transactions"]], on=["date", "store_nbr"], how="left")
 
     return sales
 
