@@ -1,4 +1,4 @@
-# Multivariate Time Series Forecasting
+# 多元时间序列预测
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
@@ -8,152 +8,162 @@
 </p>
 
 <p align="center">
+  🏠 <b>主仓：<a href="https://gitee.com/zeroonei1/multivariate-timeseries-forecasting">Gitee</a></b> &nbsp;|&nbsp;
+  🔗 <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting">GitHub（自动同步）</a>
+</p>
+
+<p align="center">
   <b>中文</b> | <a href="./README.en.md">English</a>
 </p>
 
-## Overview
+## 项目简介
 
-End-to-end deep learning pipeline for multivariate time series forecasting. Benchmarks classical methods (XGBoost, Prophet) against modern neural architectures (LSTM, Transformer) on the Kaggle Store Sales dataset.
+基于 Kaggle Store Sales 数据集的端到端多元时间序列预测管线。将 XGBoost / Prophet 等传统方法与 LSTM / Transformer 等深度学习架构进行系统性对比，覆盖从数据清洗到交互式仪表板的完整流程。
 
-## Key Highlights
+## 核心亮点
 
-- **Baseline Models**: XGBoost Regressor + Facebook Prophet for benchmarking
-- **Deep Learning**: LSTM with embedding layers + Transformer with multi-head self-attention
-- **Feature Engineering**: Lag features (1/7/14/28/364d), rolling statistics, cyclical seasonal encodings, promo aggregates
-- **Evaluation**: MAE, RMSE, MAPE, sMAPE across all models
-- **Delivery**: Streamlit dashboard comparing forecast vs. actual
+- **基准模型**：XGBoost Regressor + Facebook Prophet 建立预测基线
+- **深度学习**：LSTM（含嵌入层）+ Transformer（含多头自注意力 + 位置编码）
+- **特征工程**：滞后特征（1/7/14/28/364 天）、滚动统计量、周期性季节编码、促销聚合
+- **多指标评估**：MAE、RMSE、MAPE、sMAPE，跨模型横向比较
+- **交互式交付**：Streamlit 仪表板，预测值 vs 真实值可视化
 
-## Architecture
+## 架构流程
 
 ```
-Raw CSVs (train, stores, oil, holidays, transactions)
-    |
-    v
-Preprocess ──> Date features, log-transform, external merges
-    |
-    v
-Feature Eng ──> Lags, rolling mean/std, seasonal encoding, promo features
-    |
-    +---> XGBoost / Prophet (baselines)
-    +---> LSTM + Embeddings (deep learning)
-    +---> Transformer + Positional Encoding (deep learning)
-    |
-    v
-Evaluate ──> MAE, RMSE, MAPE, sMAPE, residual analysis
-    |
-    v
-Dashboard ──> Forecast comparison, error distribution, residual analysis
+原始数据 (train, stores, oil, holidays, transactions)
+    │
+    ▼
+数据预处理 ──> 日期解析、对数变换、外部数据合并
+    │
+    ▼
+特征工程 ──> 滞后特征、滚动均值/标准差、季节编码、促销特征
+    │
+    ├───> XGBoost / Prophet（基线）
+    ├───> LSTM + Embeddings（深度学习）
+    ├───> Transformer + Positional Encoding（深度学习）
+    │
+    ▼
+模型评估 ──> MAE、RMSE、MAPE、sMAPE、残差分析
+    │
+    ▼
+仪表板 ──> 预测对比、误差分布、残差诊断
 ```
 
-## Tech Stack
+## 技术栈
 
-| Layer | Tools | Notes |
-|-------|-------|-------|
-| ETL | pandas, numpy | Time-based train/val split (no random shuffle) |
-| Feature Eng | pandas rolling, sklearn preprocessing | Lag/rolling features with shift(1) to prevent leakage |
-| Baselines | XGBoost, Prophet | Additive regression + tree-based benchmark |
-| Deep Learning | PyTorch, PyTorch Lightning | LSTM + Transformer with categorical embeddings |
-| Evaluation | sklearn metrics | MAE, RMSE, MAPE, sMAPE |
-| Delivery | Streamlit | Side-by-side forecast comparison |
-| Quality | pytest, ruff, GitHub Actions | CI validates pipeline end-to-end |
+| 层级 | 工具 | 说明 |
+|------|------|------|
+| 数据处理 | pandas, numpy | 按时间切分训练/验证集（不打乱顺序） |
+| 特征工程 | pandas rolling, sklearn | 滞后/滚动特征，shift(1) 防泄漏 |
+| 基线模型 | XGBoost, Prophet | 加法回归 + 树模型基准 |
+| 深度学习 | PyTorch, PyTorch Lightning | LSTM + Transformer + 类别嵌入 |
+| 模型评估 | sklearn metrics | MAE、RMSE、MAPE、sMAPE |
+| 交付 | Streamlit | 多模型预测对比仪表板 |
+| 质量保证 | pytest, ruff, GitHub Actions | CI 端到端验证 |
 
-## Quick Start
+## 快速开始
 
 ```bash
+# 从 Gitee 克隆（国内推荐，速度更快）
+git clone https://gitee.com/zeroonei1/multivariate-timeseries-forecasting.git
+
+# 或从 GitHub
 git clone https://github.com/MeaFew/multivariate-timeseries-forecasting.git
+
 cd multivariate-timeseries-forecasting
 
-# Download real dataset (GitHub Releases, ~21MB)
+# 下载真实数据集（GitHub Releases，约 21MB）
 bash download_data.sh
 
-# Run full pipeline
+# 运行完整管线
 python run_all.py
 
-# Or step by step
-make preprocess
-make features
+# 或分步执行
+make preprocess         # 数据预处理
+make features           # 特征工程
 make train-baseline     # XGBoost + Prophet
-make train-lstm         # LSTM model
-make train-transformer  # Transformer model
-make evaluate
+make train-lstm         # LSTM 模型
+make train-transformer  # Transformer 模型
+make evaluate           # 模型评估
 
-# Launch dashboard
+# 启动仪表板
 make dashboard
 
-# Quality gates
+# 质量检查
 make verify
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 .
 ├── scripts/
-│   ├── generate_mock_data.py     # Synthetic retail sales data
-│   ├── preprocess.py              # Date parsing, log-transform, external merges
-│   ├── feature_engineering.py     # Lags, rolling stats, seasonal encoding
+│   ├── generate_mock_data.py     # 合成零售销售数据
+│   ├── preprocess.py              # 日期解析、对数变换、外部数据合并
+│   ├── feature_engineering.py     # 滞后特征、滚动统计、季节编码
 │   ├── train_baseline.py          # XGBoost + Prophet
-│   ├── train_lstm.py              # LSTM with PyTorch Lightning
-│   ├── train_transformer.py       # Transformer with positional encoding
-│   ├── evaluate.py                # Model comparison & residual analysis
-│   ├── predict.py                 # Model loading and inference
+│   ├── train_lstm.py              # LSTM（PyTorch Lightning）
+│   ├── train_transformer.py       # Transformer（含位置编码）
+│   ├── evaluate.py                # 模型对比 & 残差分析
+│   ├── predict.py                 # 模型加载与推理
 │   ├── metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
-│   └── audit_consistency.py       # Cross-reference README claims vs outputs
+│   └── audit_consistency.py       # README 声明 vs 实际输出一致性校验
 ├── dashboard/
-│   └── app.py                     # Streamlit forecast comparison
+│   └── app.py                     # Streamlit 预测对比仪表板
 ├── tests/
-│   └── test_pipeline.py           # Unit + integration tests
-├── config.py                      # Centralized paths & hyperparameters
-├── Makefile                       # Workflow orchestration
+│   └── test_pipeline.py           # 单元 + 集成测试
+├── config.py                      # 集中式路径与超参数配置
+├── Makefile                       # 工作流编排
 └── requirements.txt
 ```
 
-## Model Comparison
+## 模型对比
 
-### Benchmark
+### 基准参照
 
-Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting) (metric: RMSLE, lower is better).
+基于 [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting)（评估指标：RMSLE，越低越好）。
 
-| Reference | RMSLE | Notes |
-|-----------|-------|-------|
-| Kaggle Starter (naive) | ~0.90–1.20 | Historical mean / naive forecast |
-| Competition Median | ~0.60–0.80 | Basic lag features + XGBoost |
-| Competition Top 10% | ~0.45–0.50 | Complex feature engineering |
-| Competition Top 1% | ~0.35–0.40 | Fine-grained external data usage |
-| **This Project (XGBoost CV)** | **~0.24** | Local 5-fold CV on log-transformed sales |
+| 参照 | RMSLE | 说明 |
+|------|-------|------|
+| Kaggle 入门基线（朴素法） | ~0.90–1.20 | 历史均值 / 朴素预测 |
+| 竞赛中位数 | ~0.60–0.80 | 基础滞后特征 + XGBoost |
+| 竞赛 Top 10% | ~0.45–0.50 | 复杂特征工程 |
+| 竞赛 Top 1% | ~0.35–0.40 | 细粒度外部数据利用 |
+| **本方案（XGBoost CV）** | **~0.24** | 对数变换后 5 折交叉验证 |
 
-> Note: RMSLE values are not directly comparable across log-transformed vs. original scale. The Kaggle competition uses original-scale RMSLE. Local validation uses log-scale MAE/MAPE for training stability.
+> 注：对数变换前后的 RMSLE 不可直接对比。Kaggle 使用原始尺度 RMSLE，本地验证使用对数尺度的 MAE/MAPE 以保证训练稳定性。
 
-### Results
+### 实验结果
 
-| Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
-|-------|-----|------|------|--------|---------|
-| XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
-| Prophet (aggregated) | — | — | — | — | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
-| LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | Subset (26K rows, top 20 groups) |
-| Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | Subset (26K rows, top 20 groups) |
+| 模型 | MAE | RMSE | MAPE | sMAPE* | 数据集 |
+|------|-----|------|------|--------|--------|
+| XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | 全量（300 万行，54 家门店） |
+| Prophet | — | — | — | — | *（需 pystan 编译工具链；已在 Docker/Linux CI 验证通过）* |
+| LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | 子集（2.6 万行，Top 20 组合） |
+| Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | 子集（2.6 万行，Top 20 组合） |
 
-> **LSTM/Transformer metrics** are expected benchmark values from DL training on the curated subset. Run `make train-lstm` and `make train-transformer` to generate these results on your own data. The metrics will be written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Actual values may vary slightly depending on random initialization and hardware.
+> LSTM/Transformer 指标为深度学习训练后的预期基准值。运行 `make train-lstm` 和 `make train-transformer` 可在本地生成，结果写入 `reports/model_results.json`，实际值因随机初始化和硬件略有浮动。
 
-> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores × 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless — the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
+> *sMAPE 不可跨数据集合直接对比。XGBoost 为 5 折 CV 在全量数据集（54 门店 × 33 品类，约 300 万行）上的结果；LSTM/Transformer 因训练时间限制在 Top 20 门店-品类组合子集（2.6 万行）上评估，子集方差更小导致百分比误差更低。所有 MAE/RMSE/MAPE 在 log1p(sales) 空间计算。
 
-## Data
+## 数据说明
 
-The project uses the **Kaggle Store Sales - Time Series Forecasting** dataset:
-- ~1,200 stores across Ecuador
-- 33 product families
-- Daily sales from 2013 to 2017
-- External variables: oil prices, holidays, promotions
+使用 Kaggle Store Sales 数据集：
+- 厄瓜多尔约 1,200 家门店
+- 33 个产品品类
+- 2013–2017 年每日销售数据
+- 外部变量：油价、节假日、促销信息
 
-For local testing without Kaggle credentials, run `python scripts/generate_mock_data.py` to create a statistically similar synthetic dataset.
+无需 Kaggle 账号即可本地测试：运行 `python scripts/generate_mock_data.py` 自动生成统计特征相似的合成数据集。
 
 ## 相关项目
 
-| 项目 | 仓库 | 简介 |
-|------|------|------|
-| 电商用户行为分析 | [MeaFew/ecommerce-user-analytics](https://github.com/MeaFew/ecommerce-user-analytics) | 2,900万条真实用户行为数据，10大分析模块 |
-| 营销归因与预算优化 | [MeaFew/marketing-attribution-mmm](https://github.com/MeaFew/marketing-attribution-mmm) | MMM + 多触点归因 + 预算优化 |
-| 信用风险评分 | [MeaFew/credit-risk-scoring](https://github.com/MeaFew/credit-risk-scoring) | WOE/IV + XGBoost/LightGBM + SHAP 可解释性 |
+| 项目 | Gitee（主仓） | GitHub（镜像） |
+|------|---------------|-----------------|
+| 电商用户行为分析 | [Gitee](https://gitee.com/zeroonei1/ecommerce-user-analytics) | [GitHub](https://github.com/MeaFew/ecommerce-user-analytics) |
+| 营销归因与预算优化 | [Gitee](https://gitee.com/zeroonei1/marketing-attribution-mmm) | [GitHub](https://github.com/MeaFew/marketing-attribution-mmm) |
+| 信用风险评分 | [Gitee](https://gitee.com/zeroonei1/credit-risk-scoring) | [GitHub](https://github.com/MeaFew/credit-risk-scoring) |
 
 ## 许可证
 
