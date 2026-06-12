@@ -1,0 +1,29 @@
+name: Mirror to Gitee
+
+# 每次推到 GitHub main/master 时自动同步 Gitee
+# 你需要先在 GitHub Settings → Secrets 添加 GITEE_TOKEN
+# Gitee Token 获取: https://gitee.com/profile/personal_access_tokens
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Gitee
+        env:
+          GITEE_USER: ${{ secrets.GITEE_USER }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          REPO_NAME=$(basename ${{ github.repository }})
+          git remote add gitee "https://${GITEE_USER}:${GITEE_TOKEN}@gitee.com/${GITEE_USER}/${REPO_NAME}.git"
+          git push gitee --all --force
+          git push gitee --tags --force
+          echo "✅ Synced to https://gitee.com/${GITEE_USER}/${REPO_NAME}"

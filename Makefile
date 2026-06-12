@@ -37,7 +37,7 @@ dashboard:
 
 # ── Quality gates ─────────────────────────────────────────────────
 lint:
-	ruff check scripts/ tests/ --ignore E501,E402
+	ruff check scripts/ tests/ dashboard/ --ignore E501,E402
 
 test:
 	pytest tests/ -v --tb=short
