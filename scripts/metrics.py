@@ -3,6 +3,11 @@
 Provides:
 - TimeSeriesDataset: PyTorch sliding-window dataset (shared by LSTM & Transformer)
 - mape/smape: evaluation metrics (shared by baseline, LSTM, Transformer)
+
+``mape``/``smape`` are pure-numpy and live in ``scripts.metrics_utils``; they
+are re-exported here so existing ``from scripts.metrics import mape, smape``
+imports keep working. Importing the torch-free helpers directly from
+``metrics_utils`` avoids pulling in the PyTorch stack (useful in tests).
 """
 
 import numpy as np
@@ -12,17 +17,9 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch.utils.data import Dataset
 
 from config import SEQ_LENGTH
+from scripts.metrics_utils import mape, smape
 
-
-def smape(y_true, y_pred):
-    """Symmetric Mean Absolute Percentage Error."""
-    return 100 * np.mean(2 * np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred) + 1e-8))
-
-
-def mape(y_true, y_pred):
-    """Mean Absolute Percentage Error (skips zeros in true values)."""
-    mask = y_true != 0
-    return np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+__all__ = ["mape", "smape", "TimeSeriesDataset"]
 
 
 class TimeSeriesDataset(Dataset):

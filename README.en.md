@@ -92,11 +92,13 @@ make verify
 │   ├── evaluate.py                # Model comparison & residual analysis
 │   ├── predict.py                 # Model loading and inference
 │   ├── metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
+│   ├── metrics_utils.py           # torch-free mape/smape (lightweight testability)
 │   └── audit_consistency.py       # Cross-reference README claims vs outputs
 ├── dashboard/
 │   └── app.py                     # Streamlit forecast comparison
 ├── tests/
-│   └── test_pipeline.py           # Unit + integration tests
+│   ├── test_pipeline.py           # Unit + integration tests
+│   └── test_metrics.py            # mape/smape numerical contract + TimeSeriesDataset consistency
 ├── config.py                      # Centralized paths & hyperparameters
 ├── Makefile                       # Workflow orchestration
 └── requirements.txt

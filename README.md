@@ -108,11 +108,13 @@ make verify
 │   ├── evaluate.py                # 模型对比 & 残差分析
 │   ├── predict.py                 # 模型加载与推理
 │   ├── metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
+│   ├── metrics_utils.py           # 纯 numpy 的 mape/smape（torch-free，便于轻量测试）
 │   └── audit_consistency.py       # README 声明 vs 实际输出一致性校验
 ├── dashboard/
 │   └── app.py                     # Streamlit 预测对比仪表板
 ├── tests/
-│   └── test_pipeline.py           # 单元 + 集成测试
+│   ├── test_pipeline.py           # 单元 + 集成测试
+│   └── test_metrics.py            # mape/smape 数值契约 + TimeSeriesDataset 一致性测试
 ├── config.py                      # 集中式路径与超参数配置
 ├── Makefile                       # 工作流编排
 └── requirements.txt
