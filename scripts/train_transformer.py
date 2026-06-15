@@ -37,7 +37,6 @@ from config import (
     REPORTS_DIR,
     TRANSFORMER_MODEL_PATH,
 )
-
 from scripts.metrics import TimeSeriesDataset, mape, smape
 
 pl.seed_everything(RANDOM_STATE, workers=True)
@@ -50,7 +49,9 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model)
+        )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         self.register_buffer("pe", pe.unsqueeze(0))
@@ -194,6 +195,7 @@ def main():
     y_true = np.array(all_true)
 
     from sklearn.metrics import mean_absolute_error, mean_squared_error
+
     metrics = {
         "model": "transformer",
         "mae": float(mean_absolute_error(y_true, y_pred)),
@@ -201,18 +203,26 @@ def main():
         "mape": float(mape(y_true, y_pred)),
         "smape": float(smape(y_true, y_pred)),
     }
-    print(f"  Transformer  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
-          f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%")
+    print(
+        f"  Transformer  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
+        f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
+    )
 
     # Save
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), TRANSFORMER_MODEL_PATH)
-    joblib.dump({"encoders": train_ds.encoders, "scalers": train_ds.scalers, "numeric_cols": train_ds.numeric_cols},
-                TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib"))
+    joblib.dump(
+        {
+            "encoders": train_ds.encoders,
+            "scalers": train_ds.scalers,
+            "numeric_cols": train_ds.numeric_cols,
+        },
+        TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib"),
+    )
 
     results_path = MODEL_RESULTS_JSON
     if results_path.exists():
-        with open(results_path, "r") as f:
+        with open(results_path) as f:
             all_results = json.load(f)
     else:
         all_results = {}

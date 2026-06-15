@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import RAW_DATA_DIR, RANDOM_STATE
+from config import RANDOM_STATE, RAW_DATA_DIR
 
 rng = np.random.default_rng(RANDOM_STATE)
 
@@ -38,15 +38,21 @@ def generate_holidays(dates: pd.DatetimeIndex) -> pd.DataFrame:
     holidays = []
     for year in range(dates.min().year, dates.max().year + 1):
         # Fixed holidays
-        holidays.extend([
-            (f"{year}-01-01", "New Year", "National"),
-            (f"{year}-12-25", "Christmas", "National"),
-        ])
+        holidays.extend(
+            [
+                (f"{year}-01-01", "New Year", "National"),
+                (f"{year}-12-25", "Christmas", "National"),
+            ]
+        )
         # Random holidays
         n_random = rng.integers(3, 8)
         for _ in range(n_random):
-            random_date = pd.Timestamp(f"{year}-01-01") + pd.Timedelta(days=int(rng.integers(0, 365)))
-            holidays.append((random_date.strftime("%Y-%m-%d"), f"Holiday_{rng.integers(1, 20)}", "Local"))
+            random_date = pd.Timestamp(f"{year}-01-01") + pd.Timedelta(
+                days=int(rng.integers(0, 365))
+            )
+            holidays.append(
+                (random_date.strftime("%Y-%m-%d"), f"Holiday_{rng.integers(1, 20)}", "Local")
+            )
 
     df = pd.DataFrame(holidays, columns=["date", "type", "locale"])
     df["date"] = pd.to_datetime(df["date"])
@@ -61,29 +67,41 @@ def generate_stores(n_stores: int = 20) -> pd.DataFrame:
     states = ["Pichincha", "Guayas", "Azuay", "Tungurahua", "Manabi"]
     types = ["A", "B", "C", "D"]
 
-    df = pd.DataFrame({
-        "store_nbr": range(1, n_stores + 1),
-        "city": rng.choice(cities, n_stores),
-        "state": rng.choice(states, n_stores),
-        "type": rng.choice(types, n_stores, p=[0.4, 0.3, 0.2, 0.1]),
-        "cluster": rng.integers(1, 10, n_stores),
-    })
+    df = pd.DataFrame(
+        {
+            "store_nbr": range(1, n_stores + 1),
+            "city": rng.choice(cities, n_stores),
+            "state": rng.choice(states, n_stores),
+            "type": rng.choice(types, n_stores, p=[0.4, 0.3, 0.2, 0.1]),
+            "cluster": rng.integers(1, 10, n_stores),
+        }
+    )
     return df
 
 
 def generate_items(n_items: int = 50) -> pd.DataFrame:
     """Generate item metadata."""
     families = [
-        "GROCERY", "BEVERAGES", "PRODUCE", "DAIRY", "FROZEN",
-        "CLEANING", "BREAD", "MEAT", "PERSONAL CARE", "DELI",
+        "GROCERY",
+        "BEVERAGES",
+        "PRODUCE",
+        "DAIRY",
+        "FROZEN",
+        "CLEANING",
+        "BREAD",
+        "MEAT",
+        "PERSONAL CARE",
+        "DELI",
     ]
 
-    df = pd.DataFrame({
-        "item_nbr": range(1, n_items + 1),
-        "family": rng.choice(families, n_items),
-        "class": rng.integers(1000, 9999, n_items),
-        "perishable": rng.choice([0, 1], n_items, p=[0.75, 0.25]),
-    })
+    df = pd.DataFrame(
+        {
+            "item_nbr": range(1, n_items + 1),
+            "family": rng.choice(families, n_items),
+            "class": rng.integers(1000, 9999, n_items),
+            "perishable": rng.choice([0, 1], n_items, p=[0.75, 0.25]),
+        }
+    )
     return df
 
 
@@ -106,9 +124,16 @@ def generate_sales(
         for item_nbr in items["item_nbr"]:
             family = items[items["item_nbr"] == item_nbr]["family"].values[0]
             family_multiplier = {
-                "GROCERY": 1.2, "BEVERAGES": 1.0, "PRODUCE": 1.3, "DAIRY": 0.9,
-                "FROZEN": 0.7, "CLEANING": 0.8, "BREAD": 1.1, "MEAT": 0.9,
-                "PERSONAL CARE": 0.6, "DELI": 0.8,
+                "GROCERY": 1.2,
+                "BEVERAGES": 1.0,
+                "PRODUCE": 1.3,
+                "DAIRY": 0.9,
+                "FROZEN": 0.7,
+                "CLEANING": 0.8,
+                "BREAD": 1.1,
+                "MEAT": 0.9,
+                "PERSONAL CARE": 0.6,
+                "DELI": 0.8,
             }.get(family, 1.0)
 
             for date in dates:
@@ -143,16 +168,27 @@ def generate_sales(
                 # Noise
                 noise = rng.lognormal(0, 0.3)
 
-                sales = base * weekly * monthly * holiday_boost * oil_effect * trend * promo_effect * noise
+                sales = (
+                    base
+                    * weekly
+                    * monthly
+                    * holiday_boost
+                    * oil_effect
+                    * trend
+                    * promo_effect
+                    * noise
+                )
                 sales = max(0, int(sales))
 
-                records.append({
-                    "date": date.strftime("%Y-%m-%d"),
-                    "store_nbr": store_nbr,
-                    "family": family,
-                    "sales": sales,
-                    "onpromotion": int(onpromo),
-                })
+                records.append(
+                    {
+                        "date": date.strftime("%Y-%m-%d"),
+                        "store_nbr": store_nbr,
+                        "family": family,
+                        "sales": sales,
+                        "onpromotion": int(onpromo),
+                    }
+                )
 
     return pd.DataFrame(records)
 
@@ -210,7 +246,9 @@ def main():
     print(f"Train sales: {len(train_sales):,} rows")
 
     # Test data (same structure, sales=0 or NaN)
-    test_sales = generate_sales(test_dates, stores, items, oil[oil["date"].isin(test_dates)], holidays)
+    test_sales = generate_sales(
+        test_dates, stores, items, oil[oil["date"].isin(test_dates)], holidays
+    )
     test_sales["sales"] = np.nan
     test_sales.to_csv(RAW_DATA_DIR / "test.csv", index=False)
     print(f"Test sales: {len(test_sales):,} rows")

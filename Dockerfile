@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Multivariate Time Series Forecasting"
 LABEL org.opencontainers.image.description="LSTM + Transformer + XGBoost pipeline for Store Sales forecasting"
@@ -13,8 +13,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
-VOLUME ["/app/data", "/app/models", "/app/reports", "/app/images"]
 
 EXPOSE 8501
 

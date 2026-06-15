@@ -4,6 +4,7 @@ Reads model results from reports/model_results.json (written by train_baseline.p
 train_lstm.py, and train_transformer.py). Generates comparison charts and summary
 metrics for the README. Computes residuals on-the-fly for diagnostic plots.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -64,13 +66,15 @@ def print_metrics_table(results):
             mape_str = f"{mape:>7.2f}%" if mape is not None else "      --"
             smape_str = f"{smape:>7.2f}%" if smape is not None else "      --"
             print(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
-            all_metrics.append({
-                "model": name,
-                "mae": mae if mae is not None else float("nan"),
-                "rmse": rmse if rmse is not None else float("nan"),
-                "mape": mape if mape is not None else float("nan"),
-                "smape": smape if smape is not None else float("nan"),
-            })
+            all_metrics.append(
+                {
+                    "model": name,
+                    "mae": mae if mae is not None else float("nan"),
+                    "rmse": rmse if rmse is not None else float("nan"),
+                    "mape": mape if mape is not None else float("nan"),
+                    "smape": smape if smape is not None else float("nan"),
+                }
+            )
 
     print("-" * 70)
     print()
@@ -109,12 +113,24 @@ def plot_metrics_bar(results):
     # Add value labels on bars
     for bar in bars1:
         height = bar.get_height()
-        ax.annotate(f"{height:.3f}", xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 5), textcoords="offset points", ha="center", fontsize=8)
+        ax.annotate(
+            f"{height:.3f}",
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 5),
+            textcoords="offset points",
+            ha="center",
+            fontsize=8,
+        )
     for bar in bars2:
         height = bar.get_height()
-        ax.annotate(f"{height:.3f}", xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 5), textcoords="offset points", ha="center", fontsize=8)
+        ax.annotate(
+            f"{height:.3f}",
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 5),
+            textcoords="offset points",
+            ha="center",
+            fontsize=8,
+        )
 
     plt.tight_layout()
     plt.savefig(FORECAST_PLOT_PNG, dpi=150)
@@ -180,7 +196,9 @@ def plot_residuals(results):
         for entry in results.get(key, []):
             if "residuals" in entry:
                 residuals = np.array(entry["residuals"])
-                if best_metrics is None or entry.get("mae", float("inf")) < best_metrics.get("mae", float("inf")):
+                if best_metrics is None or entry.get("mae", float("inf")) < best_metrics.get(
+                    "mae", float("inf")
+                ):
                     best_metrics = entry
 
     # If no pre-computed residuals, compute on-the-fly
@@ -221,7 +239,9 @@ def plot_residuals(results):
         axes[1].set_ylabel("Residual")
         axes[1].set_title("Residuals vs Predicted")
     else:
-        axes[1].text(0.5, 0.5, "No prediction data", ha="center", va="center", transform=axes[1].transAxes)
+        axes[1].text(
+            0.5, 0.5, "No prediction data", ha="center", va="center", transform=axes[1].transAxes
+        )
 
     plt.tight_layout()
     plt.savefig(RESIDUAL_PLOT_PNG, dpi=150)

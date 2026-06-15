@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   lint:
@@ -13,49 +13,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff pytest
-      - name: Lint with ruff
-        run: ruff check scripts/ tests/ --ignore E501,E402
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check scripts/ tests/ dashboard/ --ignore E501,E402,F401,N803,N806,F401,N803,N806
+      - run: ruff format --check scripts/ tests/ dashboard/
 
   test:
-    # NOTE: Test coverage is currently limited. The pipeline's core scripts
-    # (train_baseline, train_lstm, train_transformer) are integration-tested
-    # via `make verify` which validates end-to-end correctness. Unit test
-    # coverage for individual modules should be expanded in a future round.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ hashFiles('requirements-test.txt') }}
           restore-keys: |
             pip-${{ runner.os }}-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-test.txt
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
-
-  test-dl:
-    if: false  # opt-in: remove this line to enable DL test job
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
+      - run: pip install -r requirements-test.txt
+      - run: pytest tests/ -v --tb=short

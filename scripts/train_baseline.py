@@ -59,8 +59,10 @@ def evaluate(y_true, y_pred, name: str) -> dict:
         "mape": float(mape(y_true, y_pred)),
         "smape": float(smape(y_true, y_pred)),
     }
-    print(f"  {name:20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
-          f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%")
+    print(
+        f"  {name:20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
+        f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
+    )
     return metrics
 
 
@@ -82,7 +84,8 @@ def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
         early_stopping_rounds=30,
     )
     model.fit(
-        X_train, y_train,
+        X_train,
+        y_train,
         eval_set=[(X_val, y_val)],
         verbose=False,
     )
@@ -124,7 +127,7 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 
         future = model.make_future_dataframe(periods=len(agg_val))
         forecast = model.predict(future)
-        val_pred = forecast.iloc[-len(agg_val):]["yhat"].values
+        val_pred = forecast.iloc[-len(agg_val) :]["yhat"].values
 
         metrics = evaluate(agg_val["y"].values, val_pred, "prophet")
 
@@ -149,7 +152,9 @@ def main():
     df = pd.read_csv(args.input, parse_dates=["date"])
 
     train, val = split_train_val(df)
-    print(f"Train: {len(train):,} rows ({train['date'].min().date()} ~ {train['date'].max().date()})")
+    print(
+        f"Train: {len(train):,} rows ({train['date'].min().date()} ~ {train['date'].max().date()})"
+    )
     print(f"Val:   {len(val):,} rows ({val['date'].min().date()} ~ {val['date'].max().date()})")
 
     results = []

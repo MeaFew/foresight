@@ -14,6 +14,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import torch
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from torch.utils.data import DataLoader
+
 from config import (
     BATCH_SIZE,
     FEATURES_TRAIN_CSV,
@@ -24,13 +28,9 @@ from config import (
     TRANSFORMER_MODEL_PATH,
     XGBOOST_MODEL_PATH,
 )
-from scripts.metrics import mape, smape, TimeSeriesDataset
+from scripts.metrics import TimeSeriesDataset, mape, smape
 from scripts.train_lstm import LSTMForecastModule
 from scripts.train_transformer import TransformerForecastModule
-
-import torch
-from torch.utils.data import DataLoader
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
 def find_best_model():
@@ -163,11 +163,16 @@ def predict_model(df: pd.DataFrame, model_name: str):
 def main():
     parser = argparse.ArgumentParser(description="Load models and run inference")
     parser.add_argument("--input", type=Path, default=FEATURES_TRAIN_CSV)
-    parser.add_argument("--model", type=str, default=None,
-                        choices=[None, "xgboost", "lstm", "transformer"],
-                        help="Model to use (default: best from results)")
-    parser.add_argument("--val_days", type=int, default=16,
-                        help="Days to use as validation/holdout")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        choices=[None, "xgboost", "lstm", "transformer"],
+        help="Model to use (default: best from results)",
+    )
+    parser.add_argument(
+        "--val_days", type=int, default=16, help="Days to use as validation/holdout"
+    )
     parser.add_argument("--output", type=Path, default=REPORTS_DIR / "predictions.csv")
     args = parser.parse_args()
 
@@ -197,12 +202,12 @@ def main():
     if model_name in ("lstm", "transformer"):
         # TimeSeriesDataset returns predictions per window; take last val_days * n_groups
         if len(y_pred) < len(val_df):
-            val_df = val_df.iloc[-len(y_pred):].copy()
+            val_df = val_df.iloc[-len(y_pred) :].copy()
 
         val_df["sales_log_pred"] = y_pred
         if "sales_log" in val_df.columns:
-            y_true = val_df["sales_log"].values[-len(y_pred):]
-            y_pred_arr = np.array(y_pred[:len(y_true)])
+            y_true = val_df["sales_log"].values[-len(y_pred) :]
+            y_pred_arr = np.array(y_pred[: len(y_true)])
         else:
             y_true = None
             y_pred_arr = y_pred

@@ -25,7 +25,13 @@ __all__ = ["mape", "smape", "TimeSeriesDataset"]
 class TimeSeriesDataset(Dataset):
     """PyTorch Dataset for sliding-window time series."""
 
-    def __init__(self, df: pd.DataFrame, seq_length: int = SEQ_LENGTH, encoder: dict | None = None, scalers: dict | None = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        seq_length: int = SEQ_LENGTH,
+        encoder: dict | None = None,
+        scalers: dict | None = None,
+    ):
         self.seq_length = seq_length
         self.df = df.sort_values(["store_nbr", "family", "date"]).reset_index(drop=True)
 
@@ -41,9 +47,12 @@ class TimeSeriesDataset(Dataset):
                 self.df[col] = self.encoders[col].transform(self.df[col].astype(str))
 
         # Scale numeric features
-        numeric_cols = [c for c in self.df.columns
-                        if c not in ["date", "sales", "sales_log", "id", "store_nbr", "family"]
-                        and self.df[c].dtype in [np.float64, np.int64]]
+        numeric_cols = [
+            c
+            for c in self.df.columns
+            if c not in ["date", "sales", "sales_log", "id", "store_nbr", "family"]
+            and self.df[c].dtype in [np.float64, np.int64]
+        ]
         self.numeric_cols = numeric_cols
         self.scalers = scalers or {}
         for col in numeric_cols:
@@ -67,9 +76,11 @@ class TimeSeriesDataset(Dataset):
 
     def __getitem__(self, idx):
         store, family, end_idx = self.samples[idx]
-        group = self.df[(self.df["store_nbr"] == store) & (self.df["family"] == family)].reset_index(drop=True)
+        group = self.df[
+            (self.df["store_nbr"] == store) & (self.df["family"] == family)
+        ].reset_index(drop=True)
 
-        seq = group.iloc[end_idx - self.seq_length:end_idx]
+        seq = group.iloc[end_idx - self.seq_length : end_idx]
         target = group.iloc[end_idx]["sales_log"]
 
         x_cat = torch.tensor(seq[["store_nbr", "family"]].values, dtype=torch.long)

@@ -2,19 +2,20 @@
 
 Displays model comparison, forecast visualization, and residual analysis.
 """
+
 import json
+import sys
 from pathlib import Path
 
-import sys
 repo_root = Path(__file__).parents[1].resolve()
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
 
-from config import MODEL_RESULTS_JSON, FORECAST_PLOT_PNG, RESIDUAL_PLOT_PNG, IMAGES_DIR
+from config import FORECAST_PLOT_PNG, IMAGES_DIR, MODEL_RESULTS_JSON, RESIDUAL_PLOT_PNG
 
 st.set_page_config(
     page_title="Time Series Forecasting",
@@ -23,14 +24,12 @@ st.set_page_config(
 )
 
 st.title("📈 Multivariate Time Series Forecasting")
-st.markdown(
-    "Model comparison dashboard for Store Sales forecasting "
-    "(XGBoost · LSTM · Transformer)"
-)
+st.markdown("Model comparison dashboard for Store Sales forecasting (XGBoost · LSTM · Transformer)")
 
 # ── Sidebar ───────────────────────────────────────────────────────
 st.sidebar.header("Navigation")
 page = st.sidebar.radio("Go to", ["Model Comparison", "Forecast Plot", "Residual Analysis"])
+
 
 # ── Load results ───────────────────────────────────────────────────
 @st.cache_data
@@ -40,7 +39,9 @@ def load_results():
     with open(MODEL_RESULTS_JSON) as f:
         return json.load(f)
 
+
 results = load_results()
+
 
 # ── Shared helpers ─────────────────────────────────────────────────
 def flatten_metrics(results):
@@ -69,16 +70,20 @@ if page == "Model Comparison":
         else:
             rows = []
             for m in metrics:
-                rows.append({
-                    "Model": m.get("model", "Unknown"),
-                    "MAE": m.get("mae"),
-                    "RMSE": m.get("rmse"),
-                    "MAPE": m.get("mape"),
-                    "sMAPE": m.get("smape"),
-                })
+                rows.append(
+                    {
+                        "Model": m.get("model", "Unknown"),
+                        "MAE": m.get("mae"),
+                        "RMSE": m.get("rmse"),
+                        "MAPE": m.get("mape"),
+                        "sMAPE": m.get("smape"),
+                    }
+                )
             df = pd.DataFrame(rows)
-            st.dataframe(df.style.highlight_min(axis=0, subset=["MAE", "RMSE", "MAPE", "sMAPE"]),
-                         use_container_width=True)
+            st.dataframe(
+                df.style.highlight_min(axis=0, subset=["MAE", "RMSE", "MAPE", "sMAPE"]),
+                use_container_width=True,
+            )
 
             # Bar chart
             st.subheader("Error Comparison (log scale)")

@@ -32,13 +32,11 @@ def create_rolling_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFram
     """Create rolling mean and std features."""
     df = df.copy()
     for window in windows:
-        df[f"sales_roll_mean_{window}"] = (
-            df.groupby(["store_nbr", "family"])["sales_log"]
-            .transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
-        )
-        df[f"sales_roll_std_{window}"] = (
-            df.groupby(["store_nbr", "family"])["sales_log"]
-            .transform(lambda x: x.shift(1).rolling(window, min_periods=1).std())
+        df[f"sales_roll_mean_{window}"] = df.groupby(["store_nbr", "family"])[
+            "sales_log"
+        ].transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
+        df[f"sales_roll_std_{window}"] = df.groupby(["store_nbr", "family"])["sales_log"].transform(
+            lambda x: x.shift(1).rolling(window, min_periods=1).std()
         )
     return df
 
@@ -46,9 +44,8 @@ def create_rolling_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFram
 def create_expanding_features(df: pd.DataFrame) -> pd.DataFrame:
     """Create expanding mean feature."""
     df = df.copy()
-    df["sales_expanding_mean"] = (
-        df.groupby(["store_nbr", "family"])["sales_log"]
-        .transform(lambda x: x.shift(1).expanding(min_periods=1).mean())
+    df["sales_expanding_mean"] = df.groupby(["store_nbr", "family"])["sales_log"].transform(
+        lambda x: x.shift(1).expanding(min_periods=1).mean()
     )
     return df
 
@@ -73,10 +70,9 @@ def create_promo_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     # Cumulative promo days in past 7/14/30 days
     for window in [7, 14, 30]:
-        df[f"promo_roll_sum_{window}"] = (
-            df.groupby(["store_nbr", "family"])["onpromotion"]
-            .transform(lambda x: x.shift(1).rolling(window, min_periods=1).sum())
-        )
+        df[f"promo_roll_sum_{window}"] = df.groupby(["store_nbr", "family"])[
+            "onpromotion"
+        ].transform(lambda x: x.shift(1).rolling(window, min_periods=1).sum())
     return df
 
 

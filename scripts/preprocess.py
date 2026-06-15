@@ -71,7 +71,9 @@ def preprocess_sales(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def merge_external(df: pd.DataFrame, oil: pd.DataFrame | None, holidays: pd.DataFrame | None) -> pd.DataFrame:
+def merge_external(
+    df: pd.DataFrame, oil: pd.DataFrame | None, holidays: pd.DataFrame | None
+) -> pd.DataFrame:
     """Merge oil prices and holiday indicators."""
     df = df.copy()
     df["date"] = pd.to_datetime(df["date"])
@@ -111,7 +113,9 @@ def preprocess(data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     if "transactions" in data:
         trans = data["transactions"].copy()
         trans["date"] = pd.to_datetime(trans["date"])
-        sales = sales.merge(trans[["date", "store_nbr", "transactions"]], on=["date", "store_nbr"], how="left")
+        sales = sales.merge(
+            trans[["date", "store_nbr", "transactions"]], on=["date", "store_nbr"], how="left"
+        )
 
     return sales
 

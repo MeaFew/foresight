@@ -1,12 +1,8 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -23,16 +19,73 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# PyInstaller
 *.manifest
 *.spec
-
-# Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Virtual environments
+.env
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+.python-version
+
+# Data (large files — tracked via Git LFS if needed)
+data/raw/
+data/processed/
+data/external/
+*.csv
+*.tsv
+*.tsv.gz
+*.parquet
+*.db
+*.duckdb
+*.zip
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
+
+# Models / outputs
+models/
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.ckpt
+reports/*.json
+reports/*.md
+reports/*.html
+reports/checkpoints/
+images/*.png
+images/*.jpg
+!models/.gitkeep
+!reports/.gitkeep
+!images/.gitkeep
+
+# Logs
+*.log
+lightning_logs/
+wandb/
+
+# Test / coverage
 htmlcov/
 .tox/
 .nox/
@@ -44,68 +97,3 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Data (large files — tracked via Git LFS if needed)
-data/raw/*.csv
-data/processed/*.csv
-data/external/*.csv
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!data/external/.gitkeep
-
-# Models
-models/*.pt
-models/*.pth
-models/**/*.ckpt
-models/*.json
-models/*.joblib
-!models/.gitkeep
-
-# Reports / outputs
-reports/*.json
-reports/*.md
-reports/*.csv
-reports/checkpoints/
-!reports/.gitkeep
-
-# Images
-images/*.png
-images/*.jpg
-!images/.gitkeep
-
-# Logs
-*.log
-lightning_logs/
-wandb/
-
-# DuckDB
-*.duckdb
-*.duckdb.wal
-multivariate-timeseries-forecasting/data.zip
-data.zip
