@@ -4,12 +4,12 @@
   <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
   <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
-  <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting/actions"><img src="https://github.com/MeaFew/multivariate-timeseries-forecasting/workflows/CI/badge.svg" alt="CI"></a>
+  <a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
 </p>
 
 <p align="center">
-  🏠 <b>主仓：<a href="https://gitee.com/zeroonei1/multivariate-timeseries-forecasting">Gitee</a></b> &nbsp;|&nbsp;
-  🔗 <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting">GitHub（自动同步）</a>
+  🏠 <b>主仓：<a href="https://gitee.com/zeroonei1/foresight">Gitee</a></b> &nbsp;|&nbsp;
+  🔗 <a href="https://github.com/MeaFew/foresight">GitHub（自动同步）</a>
 </p>
 
 <p align="center">
@@ -66,12 +66,12 @@
 
 ```bash
 # 从 Gitee 克隆（国内推荐，速度更快）
-git clone https://gitee.com/zeroonei1/multivariate-timeseries-forecasting.git
+git clone https://gitee.com/zeroonei1/foresight.git
 
 # 或从 GitHub
-git clone https://github.com/MeaFew/multivariate-timeseries-forecasting.git
+git clone https://github.com/MeaFew/foresight.git
 
-cd multivariate-timeseries-forecasting
+cd foresight
 
 # 下载真实数据集（GitHub Releases，约 21MB）
 bash download_data.sh
@@ -163,9 +163,9 @@ make verify
 
 | 项目 | Gitee（主仓） | GitHub（镜像） |
 |------|---------------|-----------------|
-| 电商用户行为分析 | [Gitee](https://gitee.com/zeroonei1/ecommerce-user-analytics) | [GitHub](https://github.com/MeaFew/ecommerce-user-analytics) |
-| 营销归因与预算优化 | [Gitee](https://gitee.com/zeroonei1/marketing-attribution-mmm) | [GitHub](https://github.com/MeaFew/marketing-attribution-mmm) |
-| 信用风险评分 | [Gitee](https://gitee.com/zeroonei1/credit-risk-scoring) | [GitHub](https://github.com/MeaFew/credit-risk-scoring) |
+| 电商用户行为分析 | [Gitee](https://gitee.com/zeroonei1/shoplytics) | [GitHub](https://github.com/MeaFew/shoplytics) |
+| 营销归因与预算优化 | [Gitee](https://gitee.com/zeroonei1/attributor) | [GitHub](https://github.com/MeaFew/attributor) |
+| 信用风险评分 | [Gitee](https://gitee.com/zeroonei1/riskscore) | [GitHub](https://github.com/MeaFew/riskscore) |
 
 ## 许可证
 

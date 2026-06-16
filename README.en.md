@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
   <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
-  <a href="https://github.com/MeaFew/multivariate-timeseries-forecasting/actions"><img src="https://github.com/MeaFew/multivariate-timeseries-forecasting/workflows/CI/badge.svg" alt="CI"></a>
+  <a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
 </p>
 
 ## Overview
@@ -54,8 +54,8 @@ Dashboard ──> Forecast comparison, error distribution, residual analysis
 ## Quick Start
 
 ```bash
-git clone https://github.com/MeaFew/multivariate-timeseries-forecasting.git
-cd multivariate-timeseries-forecasting
+git clone https://github.com/MeaFew/foresight.git
+cd foresight
 
 # Download real dataset (GitHub Releases, ~21MB)
 bash download_data.sh
@@ -147,9 +147,9 @@ For local testing without Kaggle credentials, run `python scripts/generate_mock_
 
 | Project | Repo | Description |
 |---------|------|-------------|
-| E-commerce User Analytics | [MeaFew/ecommerce-user-analytics](https://github.com/MeaFew/ecommerce-user-analytics) | 29M real user behavior records, 10 analytical modules |
-| Marketing Attribution & MMM | [MeaFew/marketing-attribution-mmm](https://github.com/MeaFew/marketing-attribution-mmm) | MMM + multi-touch attribution + budget optimization |
-| Credit Risk Scoring | [MeaFew/credit-risk-scoring](https://github.com/MeaFew/credit-risk-scoring) | WOE/IV + XGBoost/LightGBM + SHAP interpretability |
+| E-commerce User Analytics | [MeaFew/shoplytics](https://github.com/MeaFew/shoplytics) | 29M real user behavior records, 10 analytical modules |
+| Marketing Attribution & MMM | [MeaFew/attributor](https://github.com/MeaFew/attributor) | MMM + multi-touch attribution + budget optimization |
+| Credit Risk Scoring | [MeaFew/riskscore](https://github.com/MeaFew/riskscore) | WOE/IV + XGBoost/LightGBM + SHAP interpretability |
 
 ## License
 

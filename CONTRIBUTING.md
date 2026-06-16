@@ -6,8 +6,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/MeaFew/multivariate-timeseries-forecasting.git
-cd multivariate-timeseries-forecasting
+git clone https://github.com/MeaFew/foresight.git
+cd foresight
 
 # 2. 创建虚拟环境 (推荐 Python 3.12)
 python -m venv .venv

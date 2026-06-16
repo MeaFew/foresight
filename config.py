@@ -1,4 +1,4 @@
-"""Project-wide configuration for multivariate-timeseries-forecasting.
+"""Project-wide configuration for foresight.
 
 All paths are resolved relative to this file's location.
 """
