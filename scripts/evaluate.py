@@ -86,6 +86,8 @@ def plot_metrics_bar(results):
     entries = []
     for key in ["baseline_results", "lstm_results", "transformer_results"]:
         for entry in results.get(key, []):
+            if entry.get("mae") is None:
+                continue
             name = entry.get("model", key).split("_")[0].upper()
             entries.append((name, entry))
 

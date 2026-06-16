@@ -107,9 +107,9 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
     """Train Prophet baseline on aggregated data."""
     print("\nTraining Prophet (aggregated) ...")
 
-    # Prophet requires cmdstan build tools — unavailable on Windows.
+    # Prophet requires cmdstan build tools - unavailable on Windows.
     if sys.platform == "win32":
-        print("  Prophet unavailable (sys.platform=win32) — skipping")
+        print("  Prophet unavailable (sys.platform=win32) - skipping")
         return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 
     try:
@@ -137,7 +137,7 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 
         return model, metrics
     except (ImportError, AttributeError, RuntimeError) as e:
-        print(f"  Prophet unavailable ({type(e).__name__}) — skipping")
+        print(f"  Prophet unavailable ({type(e).__name__}) - skipping")
         return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 
 

@@ -1,12 +1,21 @@
 """Windows-compatible one-shot pipeline runner.
 
 Replaces `make all` on systems without GNU Make (e.g., Windows).
-Usage: python run_all.py
+Usage:
+    python run_all.py
+    python run_all.py --quick          # fast CPU verification (1 epoch)
+    python run_all.py --max-epochs 10  # custom DL training budget
 """
 
+import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+# Force UTF-8 mode for the whole subprocess tree on Windows before any heavy
+# imports (e.g. PyTorch Lightning's Rich progress bar) are loaded.
+os.environ.setdefault("PYTHONUTF8", "1")
 
 
 def run(cmd: str, cwd: Path | None = None):
@@ -21,18 +30,57 @@ def run(cmd: str, cwd: Path | None = None):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Run the full multivariate time-series forecasting pipeline."
+    )
+    parser.add_argument(
+        "--max-epochs",
+        type=int,
+        default=None,
+        help="Max epochs for LSTM/Transformer (default: config.MAX_EPOCHS).",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=None,
+        help="Early-stopping patience for LSTM/Transformer (default: config.PATIENCE).",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Fast verification mode: 1 epoch, patience=1.",
+    )
+    args = parser.parse_args()
+
+    if args.quick:
+        max_epochs = 1
+        patience = 1
+    else:
+        max_epochs = args.max_epochs
+        patience = args.patience
+
+    dl_flags = []
+    if max_epochs is not None:
+        dl_flags.append(f"--max_epochs {max_epochs}")
+    if patience is not None:
+        dl_flags.append(f"--patience {patience}")
+    dl_suffix = " ".join(dl_flags)
+
     here = Path(__file__).resolve().parent
 
     steps = [
         ("Preprocessing", "python scripts/preprocess.py"),
         ("Feature Engineering", "python scripts/feature_engineering.py"),
         ("Baseline Training (XGBoost)", "python scripts/train_baseline.py"),
-        ("LSTM Training", "python scripts/train_lstm.py"),
-        ("Transformer Training", "python scripts/train_transformer.py"),
+        ("LSTM Training", f"python scripts/train_lstm.py{dl_suffix and ' ' + dl_suffix}"),
+        (
+            "Transformer Training",
+            f"python scripts/train_transformer.py{dl_suffix and ' ' + dl_suffix}",
+        ),
         ("Evaluation", "python scripts/evaluate.py"),
     ]
 
-    print("Multivariate Time Series Forecasting — Full Pipeline")
+    print("Multivariate Time Series Forecasting - Full Pipeline")
     print("=" * 60)
 
     for name, cmd in steps:

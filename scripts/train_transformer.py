@@ -9,8 +9,14 @@ Architecture:
 import argparse
 import json
 import math
+import os
 import sys
 from pathlib import Path
+
+# Rich progress bar uses Windows-console APIs that fail on GBK code pages.
+# Disable it early so PyTorch Lightning falls back to a plain progress bar.
+if os.name == "nt":
+    os.environ.setdefault("PYTORCH_ENABLE_RICH", "0")
 
 import joblib
 import numpy as np
@@ -173,7 +179,7 @@ def main():
         max_epochs=args.max_epochs,
         callbacks=[checkpoint, early_stop],
         accelerator="auto",
-        enable_progress_bar=True,
+        enable_progress_bar=sys.platform != "win32",
         deterministic=True,
     )
 
