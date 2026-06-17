@@ -46,12 +46,14 @@ class TimeSeriesDataset(Dataset):
             else:
                 self.df[col] = self.encoders[col].transform(self.df[col].astype(str))
 
-        # Scale numeric features
+        # Scale numeric features. Use is_numeric_dtype (not a fixed dtype list)
+        # so float32 / Int32 / nullable dtypes are not silently dropped — this
+        # keeps the DL feature set consistent with the XGBoost path, which uses
+        # select_dtypes(include=[np.number]).
+        _exclude = {"date", "sales", "sales_log", "id", "store_nbr", "family"}
         numeric_cols = [
-            c
-            for c in self.df.columns
-            if c not in ["date", "sales", "sales_log", "id", "store_nbr", "family"]
-            and self.df[c].dtype in [np.float64, np.int64]
+            c for c in self.df.columns
+            if c not in _exclude and pd.api.types.is_numeric_dtype(self.df[c])
         ]
         self.numeric_cols = numeric_cols
         self.scalers = scalers or {}
@@ -63,22 +65,24 @@ class TimeSeriesDataset(Dataset):
             else:
                 self.df[col] = self.scalers[col].transform(self.df[[col]].fillna(0))
 
-        # Group by series
-        self.series = list(self.df.groupby(["store_nbr", "family"]))
+        # Group by series and cache the reset-indexed groups so __getitem__ is
+        # O(1) (a slice) instead of re-scanning the whole frame per sample
+        # (which made each epoch O(N^2) over the dataset size).
+        self.groups = [
+            g.reset_index(drop=True)
+            for _, g in self.df.groupby(["store_nbr", "family"], sort=False)
+        ]
         self.samples = []
-        for (store, family), group in self.series:
-            group = group.reset_index(drop=True)
+        for gid, group in enumerate(self.groups):
             for i in range(seq_length, len(group)):
-                self.samples.append((store, family, i))
+                self.samples.append((gid, i))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        store, family, end_idx = self.samples[idx]
-        group = self.df[
-            (self.df["store_nbr"] == store) & (self.df["family"] == family)
-        ].reset_index(drop=True)
+        gid, end_idx = self.samples[idx]
+        group = self.groups[gid]
 
         seq = group.iloc[end_idx - self.seq_length : end_idx]
         target = group.iloc[end_idx]["sales_log"]

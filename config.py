@@ -30,6 +30,11 @@ RESIDUAL_PLOT_PNG = IMAGES_DIR / "residual_distribution.png"
 
 # ── Modeling constants ────────────────────────────────────────────
 RANDOM_STATE = 42
+# Number of days reserved for the validation split (held out from the tail of
+# the training series). Used by every trainer and by evaluate.py so the split
+# is defined in one place — a previous version hard-coded 16 in trainers and
+# 15 (an off-by-window-size literal) in evaluate.py.
+VAL_DAYS = 16
 
 # ── Deep learning constants ───────────────────────────────────────
 BATCH_SIZE = 128
