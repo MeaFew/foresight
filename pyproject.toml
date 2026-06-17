@@ -16,6 +16,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP"]
+# Ignored rules (see Makefile/CI history):
+#   E501  line too long        — handled by `ruff format`
+#   E402  import not at top     — scripts inject sys.path before late imports
+#   F401  unused import         — re-exports / __init__ convenience imports
+#   N803  arg name lowercase    — domain naming (e.g. mixedCase from data schema)
+#   N806  var name uppercase    — constants derived from runtime config
+ignore = ["E501", "E402", "F401", "N803", "N806"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

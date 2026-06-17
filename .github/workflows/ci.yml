@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff
-      - run: ruff check scripts/ tests/ dashboard/ --ignore E501,E402,F401,N803,N806,F401,N803,N806
+      - run: ruff check scripts/ tests/ dashboard/
       - run: ruff format --check scripts/ tests/ dashboard/
 
   test:

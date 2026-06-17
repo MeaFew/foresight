@@ -3,5 +3,4 @@ repos:
     rev: v0.11.0
     hooks:
       - id: ruff
-        args: [--ignore, E501, E402]
       - id: ruff-format

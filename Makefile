@@ -37,7 +37,7 @@ dashboard:
 
 # ── Quality gates ─────────────────────────────────────────────────
 lint:
-	ruff check scripts/ tests/ dashboard/ --ignore E501,E402,F401,N803,N806,F401,N803,N806
+	ruff check scripts/ tests/ dashboard/
 
 format:
 	ruff format scripts/ tests/ dashboard/
