@@ -1,49 +1,32 @@
 """Transformer (Informer-style) model for time series forecasting.
 
-Architecture:
-- Positional encoding + embedding for categorical features
-- Transformer encoder for temporal attention
-- Fully-connected output head
+Architecture: positional encoding + embedding for categorical features ->
+Transformer encoder -> FC head. Training/evaluation plumbing is shared via
+scripts/train_common.py.
 """
 
-import argparse
-import json
 import math
-import os
 import sys
 from pathlib import Path
 
-# Rich progress bar uses Windows-console APIs that fail on GBK code pages.
-# Disable it early so PyTorch Lightning falls back to a plain progress bar.
-if os.name == "nt":
-    os.environ.setdefault("PYTORCH_ENABLE_RICH", "0")
-
-import joblib
-import numpy as np
-import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from train_common import BaseForecastModule, build_arg_parser, load_and_split, train_and_evaluate
+
 from config import (
-    BATCH_SIZE,
     D_MODEL,
     DROPOUT,
     FEATURES_TRAIN_CSV,
     LEARNING_RATE,
-    MAX_EPOCHS,
-    MODEL_RESULTS_JSON,
     N_HEADS,
     N_LAYERS,
-    PATIENCE,
     RANDOM_STATE,
-    REPORTS_DIR,
     TRANSFORMER_MODEL_PATH,
 )
-from scripts.metrics import TimeSeriesDataset, mape, smape
+from scripts.metrics import TimeSeriesDataset
 
 pl.seed_everything(RANDOM_STATE, workers=True)
 
@@ -66,7 +49,7 @@ class PositionalEncoding(nn.Module):
         return x + self.pe[:, : x.size(1), :]
 
 
-class TransformerForecastModule(pl.LightningModule):
+class TransformerForecastModule(BaseForecastModule):
     """PyTorch Lightning module for Transformer forecasting."""
 
     def __init__(
@@ -114,47 +97,17 @@ class TransformerForecastModule(pl.LightningModule):
         out = self.fc(x[:, -1, :])
         return out.squeeze(-1)
 
-    def training_step(self, batch, batch_idx):
-        y_hat = self(batch["cat"], batch["num"])
-        loss = self.criterion(y_hat, batch["y"])
-        self.log("train_loss", loss, prog_bar=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        y_hat = self(batch["cat"], batch["num"])
-        loss = self.criterion(y_hat, batch["y"])
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
-
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=FEATURES_TRAIN_CSV)
-    parser.add_argument("--max_epochs", type=int, default=MAX_EPOCHS)
-    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
-    parser.add_argument("--patience", type=int, default=PATIENCE)
-    args = parser.parse_args()
+    args = build_arg_parser().parse_args()
+    if args.input is None:
+        args.input = FEATURES_TRAIN_CSV
 
     print(f"Loading data from {args.input} ...")
-    df = pd.read_csv(args.input, parse_dates=["date"])
-
-    # Split by time — last N days as validation
-    val_days = 16
-    max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=val_days - 1)
-    train_df = df[df["date"] < val_start].copy()
-    val_df = df[df["date"] >= val_start].copy()
-
-    print(f"Train: {len(train_df):,} | Val: {len(val_df):,}")
+    train_df, val_df = load_and_split(args.input)
 
     train_ds = TimeSeriesDataset(train_df)
     val_ds = TimeSeriesDataset(val_df, encoder=train_ds.encoders, scalers=train_ds.scalers)
-
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
     num_stores = train_ds.df["store_nbr"].nunique()
     num_families = train_ds.df["family"].nunique()
@@ -166,77 +119,16 @@ def main():
         num_numeric=num_numeric,
     )
 
-    checkpoint = ModelCheckpoint(
-        monitor="val_loss",
-        mode="min",
-        save_top_k=1,
-        filename="transformer-{epoch:02d}-{val_loss:.4f}",
-        dirpath=REPORTS_DIR / "checkpoints",
+    train_and_evaluate(
+        model,
+        train_ds,
+        val_ds,
+        args,
+        name="Transformer",
+        checkpoint_filename="transformer-{epoch:02d}-{val_loss:.4f}",
+        state_dict_path=TRANSFORMER_MODEL_PATH,
+        results_key="transformer_results",
     )
-    early_stop = EarlyStopping(monitor="val_loss", patience=args.patience, mode="min")
-
-    trainer = pl.Trainer(
-        max_epochs=args.max_epochs,
-        callbacks=[checkpoint, early_stop],
-        accelerator="auto",
-        enable_progress_bar=sys.platform != "win32",
-        deterministic=True,
-    )
-
-    print("\nTraining Transformer ...")
-    trainer.fit(model, train_loader, val_loader)
-
-    # Evaluate
-    print("\nEvaluating on validation set ...")
-    model.eval()
-    all_preds = []
-    all_true = []
-    with torch.no_grad():
-        for batch in val_loader:
-            y_hat = model(batch["cat"], batch["num"])
-            all_preds.extend(y_hat.cpu().numpy())
-            all_true.extend(batch["y"].cpu().numpy())
-
-    y_pred = np.array(all_preds)
-    y_true = np.array(all_true)
-
-    from sklearn.metrics import mean_absolute_error, mean_squared_error
-
-    metrics = {
-        "model": "transformer",
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mape": float(mape(y_true, y_pred)),
-        "smape": float(smape(y_true, y_pred)),
-    }
-    print(
-        f"  Transformer  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
-        f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
-    )
-
-    # Save
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), TRANSFORMER_MODEL_PATH)
-    joblib.dump(
-        {
-            "encoders": train_ds.encoders,
-            "scalers": train_ds.scalers,
-            "numeric_cols": train_ds.numeric_cols,
-        },
-        TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib"),
-    )
-
-    results_path = MODEL_RESULTS_JSON
-    if results_path.exists():
-        with open(results_path) as f:
-            all_results = json.load(f)
-    else:
-        all_results = {}
-    all_results["transformer_results"] = [metrics]
-    with open(results_path, "w") as f:
-        json.dump(all_results, f, indent=2)
-
-    print(f"\nModel saved: {TRANSFORMER_MODEL_PATH}")
 
 
 if __name__ == "__main__":

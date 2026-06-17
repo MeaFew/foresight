@@ -27,6 +27,7 @@ from config import (
     MODEL_RESULTS_JSON,
     MODELS_DIR,
     RESIDUAL_PLOT_PNG,
+    VAL_DAYS,
 )
 
 # Ensure images/ exists
@@ -161,10 +162,10 @@ def compute_residuals_on_the_fly():
     print("Computing residuals from XGBoost model ...")
     df = pd.read_csv(feature_path, parse_dates=["date"])
 
-    # Same split as baseline training
-    max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=15)
-    val_df = df[df["date"] >= val_start].copy()
+    # Same split as baseline training (VAL_DAYS from config, via shared helper).
+    from metrics_utils import time_train_val_split
+
+    _train_df, val_df = time_train_val_split(df, VAL_DAYS)
 
     # Prepare features
     exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
