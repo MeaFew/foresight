@@ -108,8 +108,8 @@ def main():
     train_ds = TimeSeriesDataset(train_df)
     val_ds = TimeSeriesDataset(val_df, encoder=train_ds.encoders, scalers=train_ds.scalers)
 
-    num_stores = train_ds.df["store_nbr"].nunique()
-    num_families = train_ds.df["family"].nunique()
+    num_stores = train_ds.n_stores
+    num_families = train_ds.n_families
     num_numeric = len(train_ds.numeric_cols)
 
     model = TransformerForecastModule(

@@ -25,6 +25,12 @@ import torch
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader
 
+# Enable Tensor Core matmul on Ampere/Ada GPUs (4060+) — PyTorch recommends
+# this whenever CUDA is available. Trades a tiny amount of precision for a
+# large throughput gain on tensor-core hardware.
+if torch.cuda.is_available():
+    torch.set_float32_matmul_precision("medium")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from metrics_utils import compute_metrics, time_train_val_split
 
@@ -55,17 +61,51 @@ class BaseForecastModule(pl.LightningModule):
 
 
 def load_and_split(input_path: Path):
-    """Read the feature CSV and apply the shared time-based train/val split."""
+    """Read the feature CSV and apply the shared time-based train/val split.
+
+    The validation frame is given ``SEQ_LENGTH`` extra days of history from
+    the tail of the training period so that sliding-window samples can form in
+    the validation set: a window predicting day *t* needs the prior
+    ``SEQ_LENGTH`` days as input, and without this overlap the first
+    ``SEQ_LENGTH`` validation days would yield zero samples. The training
+    frame still excludes the held-out validation *targets* — only the
+    context (features) is shared, which is the standard walk-forward setup.
+    """
+    from config import SEQ_LENGTH
+
     df = pd.read_csv(input_path, parse_dates=["date"])
     train_df, val_df = time_train_val_split(df, VAL_DAYS)
-    print(f"Train: {len(train_df):,} | Val: {len(val_df):,}")
+    # Prepend SEQ_LENGTH days of training tail as window context for val.
+    context_start = val_df["date"].min() - pd.Timedelta(days=SEQ_LENGTH)
+    val_context = train_df[train_df["date"] >= context_start]
+    val_df = pd.concat([val_context, val_df], ignore_index=True)
+    print(f"Train: {len(train_df):,} | Val: {len(val_df):,} (incl. {SEQ_LENGTH}-day context)")
     return train_df, val_df
 
 
 def make_loaders(train_ds, val_ds, batch_size: int = BATCH_SIZE):
-    """Build shuffling train / non-shuffling val DataLoaders."""
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    """Build shuffling train / non-shuffling val DataLoaders.
+
+    ``num_workers`` and ``pin_memory`` matter a lot on GPU: with the default
+    ``num_workers=0`` the GPU starves waiting on the single-threaded dataset
+    (each ``__getitem__`` does pandas slicing), which on a 2.3M-sample training
+    set made each epoch take many minutes. A modest worker count + pinned
+    memory keeps the GPU fed.
+    """
+    # num_workers=0 by design: TimeSeriesDataset holds the full 2.3M-row frame
+    # in memory, and on Windows (spawn-based multiprocessing) each worker would
+    # *copy* that frame — 4 workers = 4× the RAM, which OOMs an 8GB machine.
+    # Instead the dataset pre-converts its data to numpy arrays (see
+    # TimeSeriesDataset), so __getitem__ is a cheap array slice and the
+    # single-threaded loader keeps up with the GPU.
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, num_workers=0,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, num_workers=0,
+        pin_memory=True,
+    )
     return train_loader, val_loader
 
 
@@ -95,16 +135,35 @@ def train_and_evaluate(
         dirpath=REPORTS_DIR / "checkpoints",
     )
     early_stop = EarlyStopping(monitor="val_loss", patience=args.patience, mode="min")
+    # bf16-mixed (not 16-mixed): the 4060 is Ada (bf16-capable), and bf16 has
+    # the same dynamic range as fp32 so it avoids the overflow/underflow that
+    # 16-mixed can hit on loss values — safer for MSE on log-space sales with
+    # no accuracy penalty, while still engaging the Tensor Cores for speed.
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
         callbacks=[checkpoint, early_stop],
         accelerator="auto",
+        precision="bf16-mixed" if torch.cuda.is_available() else 32,
         enable_progress_bar=sys.platform != "win32",
-        deterministic=True,
     )
 
     print(f"\nTraining {name} ...")
-    trainer.fit(model, train_loader, val_loader)
+    # If --resume was passed, continue from the most recent checkpoint in the
+    # checkpoint dir (glob match on the filename prefix). This restores the
+    # model weights, optimizer state, epoch counter, and LR-scheduler state.
+    ckpt_path = None
+    if getattr(args, "resume", False):
+        import glob
+        ckpts = sorted(
+            (REPORTS_DIR / "checkpoints").glob(f"{name.lower()}-*.ckpt"),
+            key=os.path.getmtime,
+        )
+        if ckpts:
+            ckpt_path = str(ckpts[-1])
+            print(f"Resuming from {ckpt_path}")
+        else:
+            print("No checkpoint found to resume from; starting fresh.")
+    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
     # Restore the best checkpoint (lowest val_loss) selected by ModelCheckpoint,
     # so the weights saved/evaluated below are the best ones — not the final
@@ -164,4 +223,8 @@ def build_arg_parser():
     parser.add_argument("--max_epochs", type=int, default=MAX_EPOCHS)
     parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
     parser.add_argument("--patience", type=int, default=PATIENCE)
+    # Resume from the latest checkpoint in the checkpoint dir. Useful when a
+    # long training run is interrupted (e.g. a timeout) — re-running with
+    # --resume continues from the best saved epoch instead of restarting.
+    parser.add_argument("--resume", action="store_true")
     return parser

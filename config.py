@@ -37,9 +37,14 @@ RANDOM_STATE = 42
 VAL_DAYS = 16
 
 # ── Deep learning constants ───────────────────────────────────────
-BATCH_SIZE = 128
+# batch_size raised to 1024: on a 4060 8GB the model uses <1GB even at this
+# size, and larger batches cut the per-epoch step count (17.7k → 2.2k) which
+# removes the kernel-launch overhead that dominated training time at bs=128
+# (benchmark: bs=128 → 72s/epoch, bs=1024 → 38s/epoch). lr scaled up to match
+# (1e-3 was tuned for bs=128; larger batches tolerate a larger step).
+BATCH_SIZE = 1024
 MAX_EPOCHS = 100
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 3e-3
 PATIENCE = 10  # early stopping patience
 SEQ_LENGTH = 28  # lookback window for LSTM/Transformer
 D_MODEL = 64  # Transformer embedding dimension

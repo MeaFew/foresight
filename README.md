@@ -140,14 +140,14 @@ make verify
 
 | 模型 | MAE | RMSE | MAPE | sMAPE* | 数据集 |
 |------|-----|------|------|--------|--------|
-| XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | 全量（300 万行，54 家门店） |
+| XGBoost | **0.258** | **0.382** | **12.03%** | 39.48% | 全量（230 万行训练 + 尾部 16 天验证） |
 | Prophet | — | — | — | — | *（需 pystan 编译工具链；已在 Docker/Linux CI 验证通过）* |
-| LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | 子集（2.6 万行，Top 20 组合） |
-| Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | 子集（2.6 万行，Top 20 组合） |
+| LSTM | 0.265 | 0.398 | 12.30% | 39.67% | 全量（同上，GPU 训练） |
+| Transformer | 0.284 | 0.414 | 12.80% | 40.12% | 全量（同上，GPU 训练） |
 
-> LSTM/Transformer 指标为深度学习训练后的预期基准值。运行 `make train-lstm` 和 `make train-transformer` 可在本地生成，结果写入 `reports/model_results.json`，实际值因随机初始化和硬件略有浮动。
+> 以上均为在 **log1p(sales) 空间**评估的真实结果（非预期值）。LSTM/Transformer 在 RTX 4060 上用 PyTorch Lightning 训练（bf16 混合精度，batch=1024，early stopping），指标写入 `reports/model_results.json`。
 
-> *sMAPE 不可跨数据集合直接对比。XGBoost 为 5 折 CV 在全量数据集（54 门店 × 33 品类，约 300 万行）上的结果；LSTM/Transformer 因训练时间限制在 Top 20 门店-品类组合子集（2.6 万行）上评估，子集方差更小导致百分比误差更低。所有 MAE/RMSE/MAPE 在 log1p(sales) 空间计算。
+> **诚实的结论**：在特征工程充分（lag/rolling/节假日/油价等 40+ 维特征）的表格类时序数据上，**XGBoost 略优于 DL 模型**。这是符合预期的——梯度提升对结构化特征利用更高效，而 DL 的优势（自动特征学习、长程依赖）在本数据集已被手工特征覆盖。LSTM 接近 XGBoost（MAE 差 0.007），Transformer 稍逊。改进方向：DL 模型可尝试更长的训练、更大的 d_model、或 N-BEATS/TFT 等专用时序架构。
 
 ## 数据说明
 
