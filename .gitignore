@@ -71,7 +71,6 @@ models/
 *.pth
 *.ckpt
 reports/*.json
-reports/*.md
 reports/*.html
 reports/checkpoints/
 images/*.png
