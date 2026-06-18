@@ -55,6 +55,7 @@ Dashboard ──> Forecast comparison, error distribution, residual analysis
 
 ```bash
 git clone https://github.com/MeaFew/foresight.git
+| Graph Fraud Detection | [MeaFew/graphguard](https://github.com/MeaFew/graphguard) | GNN illicit transaction detection (Elliptic) |
 cd foresight
 
 # Download real dataset (GitHub Releases, ~21MB)

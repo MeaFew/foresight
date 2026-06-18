@@ -166,6 +166,7 @@ make verify
 | 电商用户行为分析 | [Gitee](https://gitee.com/zeroonei1/shoplytics) | [GitHub](https://github.com/MeaFew/shoplytics) |
 | 营销归因与预算优化 | [Gitee](https://gitee.com/zeroonei1/attributor) | [GitHub](https://github.com/MeaFew/attributor) |
 | 信用风险评分 | [Gitee](https://gitee.com/zeroonei1/riskscore) | [GitHub](https://github.com/MeaFew/riskscore) |
+| 图神经网络反欺诈 | [Gitee](https://gitee.com/zeroonei1/graphguard) | [GitHub](https://github.com/MeaFew/graphguard) |
 
 ## 许可证
 
