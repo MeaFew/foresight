@@ -17,8 +17,6 @@ from train_common import BaseForecastModule, build_arg_parser, load_and_split, t
 from config import FEATURES_TRAIN_CSV, LEARNING_RATE, LSTM_MODEL_PATH, RANDOM_STATE
 from scripts.metrics import TimeSeriesDataset
 
-pl.seed_everything(RANDOM_STATE, workers=True)
-
 
 class LSTMForecastModule(BaseForecastModule):
     """PyTorch Lightning module for LSTM forecasting."""
@@ -56,6 +54,7 @@ class LSTMForecastModule(BaseForecastModule):
 
 
 def main():
+    pl.seed_everything(RANDOM_STATE, workers=True)
     args = build_arg_parser().parse_args()
     if args.input is None:
         args.input = FEATURES_TRAIN_CSV

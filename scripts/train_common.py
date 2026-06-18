@@ -106,6 +106,14 @@ def train_and_evaluate(
     print(f"\nTraining {name} ...")
     trainer.fit(model, train_loader, val_loader)
 
+    # Restore the best checkpoint (lowest val_loss) selected by ModelCheckpoint,
+    # so the weights saved/evaluated below are the best ones — not the final
+    # epoch's. Without this, EarlyStopping + checkpoint selection have no effect
+    # on the model actually used for inference.
+    if checkpoint.best_model_path:
+        best = torch.load(checkpoint.best_model_path, map_location="cpu")
+        model.load_state_dict(best["state_dict"] if "state_dict" in best else best)
+
     # Evaluate on the validation split.
     print(f"\nEvaluating {name} on validation set ...")
     model.eval()
