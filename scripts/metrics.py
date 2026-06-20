@@ -23,7 +23,16 @@ __all__ = ["mape", "smape", "TimeSeriesDataset"]
 
 
 class TimeSeriesDataset(Dataset):
-    """PyTorch Dataset for sliding-window time series."""
+    """PyTorch Dataset for sliding-window time series.
+
+    ``min_target_date`` (optional): if set, only samples whose PREDICTION TARGET
+    (the window's last row, ``end_idx``) falls on or after this date are emitted.
+    This is used by the validation dataset to drop samples whose target date is
+    actually in the training period — those rows are present only as window
+    CONTEXT (so the first true-validation targets have enough lookback), not as
+    prediction targets. Without this filter the validation loss/metrics mix in
+    train-period targets and overstate DL performance.
+    """
 
     def __init__(
         self,
@@ -31,8 +40,10 @@ class TimeSeriesDataset(Dataset):
         seq_length: int = SEQ_LENGTH,
         encoder: dict | None = None,
         scalers: dict | None = None,
+        min_target_date: pd.Timestamp | None = None,
     ):
         self.seq_length = seq_length
+        self.min_target_date = min_target_date
         self.df = df.sort_values(["store_nbr", "family", "date"]).reset_index(drop=True)
 
         # Encode categoricals
@@ -76,6 +87,7 @@ class TimeSeriesDataset(Dataset):
         self.groups_cat = []   # list of (len_i, 2) int64 arrays per series
         self.groups_num = []   # list of (len_i, num_numeric) float32 arrays
         self.groups_y = []     # list of (len_i,) float32 arrays (sales_log) per series
+        self.groups_date = []  # list of (len_i,) datetime64 arrays per series
         for _, g in self.df.groupby(["store_nbr", "family"], sort=False):
             g = g.reset_index(drop=True)
             self.groups_cat.append(
@@ -87,13 +99,21 @@ class TimeSeriesDataset(Dataset):
             self.groups_y.append(
                 g["sales_log"].to_numpy(dtype=np.float32)
             )
+            self.groups_date.append(g["date"].to_numpy())
         # Free the raw frame — all data now lives in the per-series arrays.
         self.df = None
 
         self.samples = []
         for gid in range(len(self.groups_cat)):
             n = len(self.groups_cat[gid])
+            dates = self.groups_date[gid]
             for i in range(seq_length, n):
+                # If a min_target_date is set (validation set with prepended
+                # context), drop samples whose target date is before the true
+                # validation start — those are train-period targets included
+                # only to give the first validation windows enough lookback.
+                if min_target_date is not None and pd.Timestamp(dates[i]) < min_target_date:
+                    continue
                 self.samples.append((gid, i))
 
     def __len__(self):

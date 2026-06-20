@@ -18,11 +18,13 @@ from pathlib import Path
 os.environ.setdefault("PYTHONUTF8", "1")
 
 
-def run(cmd: str, cwd: Path | None = None):
+def run(cmd: list[str], cwd: Path | None = None):
     print(f"\n{'=' * 60}")
-    print(f">>> {cmd}")
+    print(f">>> {' '.join(cmd)}")
     print("=" * 60)
-    result = subprocess.run(cmd, shell=True, cwd=cwd)
+    # cmd is a list; no shell=True — avoids shell-injection surface and
+    # correctly handles paths with spaces.
+    result = subprocess.run(cmd, cwd=cwd)
     if result.returncode != 0:
         print(f"WARNING: Command failed with exit code {result.returncode}")
         return False
@@ -59,25 +61,21 @@ def main():
         max_epochs = args.max_epochs
         patience = args.patience
 
-    dl_flags = []
+    dl_flags: list[str] = []
     if max_epochs is not None:
-        dl_flags.append(f"--max_epochs {max_epochs}")
+        dl_flags += ["--max_epochs", str(max_epochs)]
     if patience is not None:
-        dl_flags.append(f"--patience {patience}")
-    dl_suffix = " ".join(dl_flags)
+        dl_flags += ["--patience", str(patience)]
 
     here = Path(__file__).resolve().parent
 
     steps = [
-        ("Preprocessing", "python scripts/preprocess.py"),
-        ("Feature Engineering", "python scripts/feature_engineering.py"),
-        ("Baseline Training (XGBoost)", "python scripts/train_baseline.py"),
-        ("LSTM Training", f"python scripts/train_lstm.py{dl_suffix and ' ' + dl_suffix}"),
-        (
-            "Transformer Training",
-            f"python scripts/train_transformer.py{dl_suffix and ' ' + dl_suffix}",
-        ),
-        ("Evaluation", "python scripts/evaluate.py"),
+        ("Preprocessing", ["python", "scripts/preprocess.py"]),
+        ("Feature Engineering", ["python", "scripts/feature_engineering.py"]),
+        ("Baseline Training (XGBoost)", ["python", "scripts/train_baseline.py"]),
+        ("LSTM Training", ["python", "scripts/train_lstm.py", *dl_flags]),
+        ("Transformer Training", ["python", "scripts/train_transformer.py", *dl_flags]),
+        ("Evaluation", ["python", "scripts/evaluate.py"]),
     ]
 
     print("Multivariate Time Series Forecasting - Full Pipeline")

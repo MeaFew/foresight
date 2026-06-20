@@ -99,9 +99,20 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     print("  Promo features ...")
     df = create_promo_features(df)
 
-    # Oil price lag
+    # Oil price lag. Oil is a SINGLE daily series shared across all
+    # (store,family) series, so the lag must be computed on a date-unique frame
+    # and merged back — NOT as a plain shift(1) over the long frame, which would
+    # shift across (store,family) group boundaries and point at the previous
+    # group's same-date value instead of "yesterday's oil".
     if "dcoilwtico" in df.columns:
-        df["oil_lag_1"] = df["dcoilwtico"].shift(1)
+        oil_daily = (
+            df[["date", "dcoilwtico"]]
+            .drop_duplicates(subset=["date"])
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+        oil_daily["oil_lag_1"] = oil_daily["dcoilwtico"].shift(1)
+        df = df.merge(oil_daily[["date", "oil_lag_1"]], on="date", how="left")
 
     # Drop rows with too many NaNs (mainly from lags)
     print("  Dropping rows with missing features ...")

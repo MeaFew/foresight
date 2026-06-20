@@ -129,3 +129,111 @@ class TestMetrics:
         )
         assert result >= 0
         assert not np.isnan(result)
+
+
+class TestLeakagePrevention:
+    """Regression tests for the leakage fixes (H4 oil_lag groupby, H5 val
+    target filter, H6 causal oil fill)."""
+
+    def test_oil_lag_uses_daily_series_not_row_adjacency(self):
+        """H4: oil_lag_1 must be the previous DAY's oil, computed on a
+        date-unique series — not a plain shift(1) that crosses (store,family)
+        group boundaries. We build a frame where two stores share the same
+        dates and verify every row for a given date gets the SAME oil_lag_1
+        (yesterday's oil), regardless of its row position."""
+        from scripts.feature_engineering import build_features
+
+        dates = pd.date_range("2022-01-01", periods=10, freq="D")
+        rows = []
+        # Distinct oil price per day so the lag is checkable
+        for d in dates:
+            for store in (1, 2):
+                rows.append(
+                    {
+                        "date": d,
+                        "store_nbr": store,
+                        "family": "GROCERY",
+                        "sales": 10.0,
+                        "onpromotion": 0,
+                        "dcoilwtico": float(d.day) * 10.0,  # 10,20,...,100
+                    }
+                )
+        df = pd.DataFrame(rows)
+        # build_features needs the time-part columns that preprocess.py adds
+        df["sales_log"] = np.log1p(df["sales"])
+        for col, fn in [
+            ("year", lambda x: x.dt.year),
+            ("month", lambda x: x.dt.month),
+            ("day", lambda x: x.dt.day),
+            ("dayofweek", lambda x: x.dt.dayofweek),
+            ("dayofyear", lambda x: x.dt.dayofyear),
+        ]:
+            df[col] = fn(df["date"])
+        df["weekofyear"] = df["date"].dt.isocalendar().week.astype(int)
+        df["is_month_start"] = df["date"].dt.is_month_start.astype(int)
+        df["is_month_end"] = df["date"].dt.is_month_end.astype(int)
+
+        out = build_features(df)
+        # For each date, oil_lag_1 must equal the PREVIOUS date's oil price
+        # and be identical across stores (proves it came from the daily series,
+        # not row-adjacent shift).
+        for i in range(1, len(dates)):
+            d = dates[i]
+            prev_oil = float(dates[i - 1].day) * 10.0
+            sub = out[out["date"] == d]
+            assert (sub["oil_lag_1"] == prev_oil).all(), (
+                f"oil_lag_1 for {d.date()} should be previous day's oil "
+                f"({prev_oil}) for ALL stores (H4: compute on daily series)"
+            )
+
+    def test_val_dataset_filters_pre_val_targets(self):
+        """H5: when min_target_date is set, the validation dataset must NOT
+        emit samples whose prediction target falls before that date — those
+        prepended context rows are window INPUT only. Otherwise train-period
+        targets leak into the validation MAE."""
+        pytest.importorskip("pytorch_lightning")
+        from scripts.metrics import TimeSeriesDataset
+
+        dates = pd.date_range("2022-01-01", periods=60, freq="D")
+        df = pd.DataFrame(
+            {
+                "date": np.tile(dates, 2),
+                "store_nbr": np.repeat([1, 2], len(dates)),
+                "family": "GROCERY",
+                "sales_log": np.arange(2 * len(dates), dtype=float),
+            }
+        )
+        val_start = dates[40]  # last 20 days are "true" validation
+        ds_all = TimeSeriesDataset(df.copy(), seq_length=7)
+        ds_filtered = TimeSeriesDataset(df.copy(), seq_length=7, min_target_date=val_start)
+
+        # Filtered must emit strictly fewer samples (the prepended-context
+        # targets before val_start are dropped).
+        assert len(ds_filtered) < len(ds_all)
+        # Every emitted sample's target date is on/after val_start.
+        for gid, end_idx in ds_filtered.samples:
+            assert pd.Timestamp(ds_filtered.groups_date[gid][end_idx]) >= val_start, (
+                "Validation dataset emitted a pre-val_start target (H5 leak)."
+            )
+
+    def test_oil_fill_is_causal(self):
+        """H6: a day's oil price must never be derived from a LATER day's
+        price. We insert an interior NaN and assert it is filled with the
+        PRECEDING known value (forward-fill), not interpolated from the next
+        value."""
+        from scripts.preprocess import merge_external
+
+        oil = pd.DataFrame(
+            {
+                "date": pd.to_datetime(
+                    ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"]
+                ),
+                "dcoilwtico": [50.0, np.nan, np.nan, 80.0],
+            }
+        )
+        base = pd.DataFrame({"date": oil["date"], "store_nbr": 1, "family": "GROCERY"})
+        out = merge_external(base, oil, None)
+        # 2022-01-02 and 2022-01-03 must both be 50.0 (ffill), NOT
+        # interpolated toward 80.0 (which would use a future value).
+        assert out.loc[out["date"] == pd.Timestamp("2022-01-02"), "dcoilwtico"].iloc[0] == 50.0
+        assert out.loc[out["date"] == pd.Timestamp("2022-01-03"), "dcoilwtico"].iloc[0] == 50.0

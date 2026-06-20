@@ -54,13 +54,11 @@ class TestMAPE:
         assert mape(y_true, y_pred) >= 0
 
     def test_handles_all_zeros_gracefully(self):
-        """All-zero y_true => empty mask => mean of empty. Result must be finite nan-safe."""
+        """All-zero y_true => empty mask => must return 0.0 (finite, serializable)."""
         y_true = np.array([0.0, 0.0])
         y_pred = np.array([1.0, 2.0])
         result = mape(y_true, y_pred)
-        # np.mean of empty slice yields nan (with a RuntimeWarning). We accept
-        # either nan or 0 here; the contract is "no crash, no inf".
-        assert np.isnan(result) or result == 0.0
+        assert result == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +91,17 @@ class TestSMAPE:
         y_pred = np.array([90.0])
         expected = 100 * 2 * 10 / 190
         assert smape(y_true, y_pred) == pytest.approx(expected)
+
+    def test_near_zero_denominator_is_floored(self):
+        """When both y and ŷ are tiny the denom is floored at 1e-8 so the error
+        does not blow up toward 200% (log1p-space sales are often near 0)."""
+        y_true = np.array([1e-10, 1e-10])
+        y_pred = np.array([1e-10, 1e-10])
+        result = smape(y_true, y_pred)
+        # Perfect prediction => 0 regardless of the floor.
+        assert result == pytest.approx(0.0, abs=1e-4)
+        # And a near-zero pair stays finite (not inf/nan).
+        assert np.isfinite(result)
 
 
 # ---------------------------------------------------------------------------

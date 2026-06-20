@@ -37,11 +37,16 @@ RANDOM_STATE = 42
 VAL_DAYS = 16
 
 # ── Deep learning constants ───────────────────────────────────────
-# batch_size raised to 1024: on a 4060 8GB the model uses <1GB even at this
-# size, and larger batches cut the per-epoch step count (17.7k → 2.2k) which
-# removes the kernel-launch overhead that dominated training time at bs=128
+# batch_size=1024: on a 4060 8GB the model uses <1GB even at this size, and
+# larger batches cut the per-epoch step count (17.7k → 2.2k), removing the
+# kernel-launch overhead that dominated training time at bs=128
 # (benchmark: bs=128 → 72s/epoch, bs=1024 → 38s/epoch). lr scaled up to match
 # (1e-3 was tuned for bs=128; larger batches tolerate a larger step).
+#
+# The OTHER big speed lever is DataLoader parallelism (see make_loaders in
+# train_common.py): num_workers=4 + persistent_workers cut per-epoch wall time
+# further by feeding the GPU from 4 processes instead of starving it on the
+# main thread. Tune via --num_workers at the CLI.
 BATCH_SIZE = 1024
 MAX_EPOCHS = 100
 LEARNING_RATE = 3e-3

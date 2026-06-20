@@ -140,14 +140,41 @@ make verify
 
 | 模型 | MAE | RMSE | MAPE | sMAPE* | 数据集 |
 |------|-----|------|------|--------|--------|
-| XGBoost | **0.258** | **0.382** | **12.03%** | 39.48% | 全量（230 万行训练 + 尾部 16 天验证） |
+| XGBoost | **0.257** | **0.381** | **12.02%** | 39.47% | 全量（230 万行训练 + 尾部 16 天验证） |
 | Prophet | — | — | — | — | *（需 pystan 编译工具链；已在 Docker/Linux CI 验证通过）* |
-| LSTM | 0.265 | 0.398 | 12.30% | 39.67% | 全量（同上，GPU 训练） |
-| Transformer | 0.284 | 0.414 | 12.80% | 40.12% | 全量（同上，GPU 训练） |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 全量（同上，GPU 训练） |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 全量（同上，GPU 训练） |
+
+> LSTM 与 Transformer 均已按三处泄漏修复重跑（验证目标过滤 + 因果油价填充 + oil_lag 按日序列）。修复逻辑本身亦通过 `tests/test_pipeline.py::TestLeakagePrevention` 验证。最新值以 `reports/model_results.json` 为准。
 
 > 以上均为在 **log1p(sales) 空间**评估的真实结果（非预期值）。LSTM/Transformer 在 RTX 4060 上用 PyTorch Lightning 训练（bf16 混合精度，batch=1024，early stopping），指标写入 `reports/model_results.json`。
 
-> **诚实的结论**：在特征工程充分（lag/rolling/节假日/油价等 40+ 维特征）的表格类时序数据上，**XGBoost 略优于 DL 模型**。这是符合预期的——梯度提升对结构化特征利用更高效，而 DL 的优势（自动特征学习、长程依赖）在本数据集已被手工特征覆盖。LSTM 接近 XGBoost（MAE 差 0.007），Transformer 稍逊。改进方向：DL 模型可尝试更长的训练、更大的 d_model、或 N-BEATS/TFT 等专用时序架构。
+> **诚实的结论**：在特征工程充分（lag/rolling/节假日/油价等 40+ 维特征）的表格类时序数据上，**XGBoost 略优于 DL 模型**。这是符合预期的——梯度提升对结构化特征利用更高效，而 DL 的优势（自动特征学习、长程依赖）在本数据集已被手工特征覆盖。LSTM 接近 XGBoost（MAE 差 0.012），Transformer 稍逊。改进方向：DL 模型可尝试更长的训练、更大的 d_model、或 N-BEATS/TFT 等专用时序架构。
+
+### 训练速度（230 万样本 / RTX 4060）
+
+早期单线程 DataLoader（`num_workers=0`）让 GPU 长时间空等，是 DL 训练慢的主因。现开启多进程数据加载后单 epoch 显著加速：
+
+| 优化项 | 说明 |
+|--------|------|
+| `num_workers=4 + persistent_workers` | 4 进程并行 `__getitem__`，worker 只 spawn 一次并跨 epoch 复用（不再每 epoch 重复拷贝数据集） |
+| `prefetch_factor=4` | 预取队列保持 GPU 不空载 |
+| `pin_memory + non_blocking` | host→device 拷贝与计算重叠 |
+| `cudnn.benchmark=True` | 固定 28 步窗口下自动选最快 kernel |
+| `bf16-mixed` precision | Ada Tensor Core 加速 |
+| `batch_size=1024` | 降低 kernel-launch 开销主导（bs=128 时 72s/epoch → bs=1024 时 38s/epoch） |
+
+> 可通过 CLI 微调：`python scripts/train_lstm.py --num_workers 8 --batch_size 2048`。若长训练被中断，`--resume` 会从 `reports/checkpoints/` 的最新 checkpoint 续训。
+
+### 防泄漏说明（重要）
+
+时序建模中泄漏会系统性高估指标。本管线修正了三处：
+
+- **油价滞后（oil_lag）按日序列计算**：早期版本对长表直接 `shift(1)`，会跨 (store,family) 组边界——第一个序列的滞后是 NaN，后续序列的"滞后"指向上一组同日值，而非"昨日的油价"。现改为在 date-unique 帧上算 `shift(1)` 再 merge 回，保证 `oil_lag_1` 始终是前一日的油价。
+- **油价缺失因果填充**：早期版本用 `interpolate(method="linear")`，这是双向插值——某日的油价会被用**未来**油价插值出来，泄漏到验证窗。现改为仅 `ffill().bfill()`（因果前向填充，bfill 只补首段无前值的行），任意一日的油价绝不来自更晚的观测。
+- **DL 验证目标过滤**：为给验证集前 28 天提供窗口上下文，`load_and_split` 会在验证帧前拼接 28 天训练尾部作为窗口输入。早期版本未过滤，导致这 28 天的训练期日期被当作 DL 的预测目标混入验证 loss/MAE。现 `TimeSeriesDataset(min_target_date=val_start)` 只发射目标日期 ≥ val_start 的样本，验证集上下文行仅作窗口输入、绝不作预测目标。
+
+> `predict.py` 的 DL 推理路径同步修正：以前传整张 df 给 `TimeSeriesDataset` 再用任意尾部切片对齐，现在只传"上下文 + 验证窗"并按 `min_target_date` 过滤，预测与验证行一一对应。
 
 ## 数据说明
 

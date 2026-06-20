@@ -79,7 +79,7 @@ def load_xgboost_and_predict(df: pd.DataFrame):
     return y_pred
 
 
-def load_lstm_and_predict(df: pd.DataFrame):
+def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
     """Load LSTM model and run inference."""
     model_path = LSTM_MODEL_PATH
     meta_path = LSTM_MODEL_PATH.with_suffix(".meta.joblib")
@@ -92,6 +92,7 @@ def load_lstm_and_predict(df: pd.DataFrame):
         df,
         encoder=meta["encoders"],
         scalers=meta["scalers"],
+        min_target_date=min_target_date,
     )
     loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
@@ -113,7 +114,7 @@ def load_lstm_and_predict(df: pd.DataFrame):
     return np.array(all_preds)
 
 
-def load_transformer_and_predict(df: pd.DataFrame):
+def load_transformer_and_predict(df: pd.DataFrame, min_target_date=None):
     """Load Transformer model and run inference."""
     model_path = TRANSFORMER_MODEL_PATH
     meta_path = TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib")
@@ -126,6 +127,7 @@ def load_transformer_and_predict(df: pd.DataFrame):
         df,
         encoder=meta["encoders"],
         scalers=meta["scalers"],
+        min_target_date=min_target_date,
     )
     loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
@@ -147,14 +149,19 @@ def load_transformer_and_predict(df: pd.DataFrame):
     return np.array(all_preds)
 
 
-def predict_model(df: pd.DataFrame, model_name: str):
-    """Run inference for a specific model type."""
+def predict_model(df: pd.DataFrame, model_name: str, min_target_date=None):
+    """Run inference for a specific model type.
+
+    ``min_target_date`` is forwarded to the DL loaders so predictions are
+    emitted only for targets on/after that date (used for leakage-free
+    validation inference).
+    """
     if model_name == "xgboost":
         return load_xgboost_and_predict(df)
     elif model_name == "lstm":
-        return load_lstm_and_predict(df)
+        return load_lstm_and_predict(df, min_target_date=min_target_date)
     elif model_name == "transformer":
-        return load_transformer_and_predict(df)
+        return load_transformer_and_predict(df, min_target_date=min_target_date)
     else:
         print(f"[SKIP] Unknown model: {model_name}")
         return None
@@ -191,34 +198,45 @@ def main():
         print("[SKIP] No model available for prediction.")
         return
 
-    # Run inference (DL models need full df for TimeSeriesDataset)
-    predict_df = df if model_name in ("lstm", "transformer") else val_df
-    y_pred = predict_model(predict_df, model_name)
+    # Run inference.
+    #
+    # DL models (LSTM/Transformer) need SEQ_LENGTH days of CONTEXT preceding the
+    # validation period as window input. We build that context from the training
+    # tail (exactly as training does) and pass ONLY that frame to
+    # load_lstm/transformer_and_predict with min_target_date=val_start, so:
+    #   - predictions are emitted ONLY for true-validation targets (no
+    #     train-period targets leak into the inference MAE), and
+    #   - the returned y_pred aligns 1:1 with val_df rows (one prediction per
+    #     validation row), instead of the old path that passed the FULL frame
+    #     and then sliced tails arbitrarily.
+    if model_name in ("lstm", "transformer"):
+        from config import SEQ_LENGTH
+
+        context_start = val_start - pd.Timedelta(days=SEQ_LENGTH)
+        dl_predict_df = df[df["date"] >= context_start].copy()
+        y_pred = predict_model(dl_predict_df, model_name, min_target_date=val_start)
+    else:
+        y_pred = predict_model(val_df, model_name)
 
     if y_pred is None:
         return
 
-    # For DL models, predictions are for the sequence windows; align with val_df
-    if model_name in ("lstm", "transformer"):
-        # TimeSeriesDataset returns predictions per window; take last val_days * n_groups
-        if len(y_pred) < len(val_df):
-            val_df = val_df.iloc[-len(y_pred) :].copy()
-
-        val_df["sales_log_pred"] = y_pred
-        if "sales_log" in val_df.columns:
-            y_true = val_df["sales_log"].values[-len(y_pred) :]
-            y_pred_arr = np.array(y_pred[: len(y_true)])
-        else:
-            y_true = None
-            y_pred_arr = y_pred
+    # DL predictions now align 1:1 with the true validation rows (filtered to
+    # targets on/after val_start). Baseline (XGBoost/Prophet) already aligns.
+    val_df["sales_log_pred"] = y_pred
+    if "sales_log" in val_df.columns:
+        y_true = val_df["sales_log"].values
+        y_pred_arr = np.array(y_pred)
+        # If lengths still differ (e.g. a series too short to form a window),
+        # truncate to the common length rather than misaligning.
+        if len(y_true) != len(y_pred_arr):
+            min_len = min(len(y_true), len(y_pred_arr))
+            y_true = y_true[:min_len]
+            y_pred_arr = y_pred_arr[:min_len]
+            val_df = val_df.iloc[:min_len].copy()
     else:
-        val_df["sales_log_pred"] = y_pred
-        if "sales_log" in val_df.columns:
-            y_true = val_df["sales_log"].values
-            y_pred_arr = y_pred
-        else:
-            y_true = None
-            y_pred_arr = y_pred
+        y_true = None
+        y_pred_arr = y_pred
 
     # Save predictions
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
