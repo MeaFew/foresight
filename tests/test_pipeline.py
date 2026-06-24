@@ -225,9 +225,7 @@ class TestLeakagePrevention:
 
         oil = pd.DataFrame(
             {
-                "date": pd.to_datetime(
-                    ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"]
-                ),
+                "date": pd.to_datetime(["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"]),
                 "dcoilwtico": [50.0, np.nan, np.nan, 80.0],
             }
         )

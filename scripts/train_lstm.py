@@ -77,7 +77,9 @@ def main():
     num_families = train_ds.n_families
     num_numeric = len(train_ds.numeric_cols)
 
-    model = LSTMForecastModule(num_stores=num_stores, num_families=num_families, num_numeric=num_numeric)
+    model = LSTMForecastModule(
+        num_stores=num_stores, num_families=num_families, num_numeric=num_numeric
+    )
 
     train_and_evaluate(
         model,

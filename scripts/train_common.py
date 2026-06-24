@@ -150,9 +150,7 @@ def make_loaders(train_ds, val_ds, batch_size: int = BATCH_SIZE, num_workers: in
         train_loader = DataLoader(
             train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True
         )
-        val_loader = DataLoader(
-            val_ds, batch_size=batch_size, shuffle=False, pin_memory=True
-        )
+        val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, pin_memory=True)
     return train_loader, val_loader
 
 
@@ -203,6 +201,7 @@ def train_and_evaluate(
     ckpt_path = None
     if getattr(args, "resume", False):
         import glob
+
         ckpts = sorted(
             (REPORTS_DIR / "checkpoints").glob(f"{name.lower()}-*.ckpt"),
             key=os.path.getmtime,

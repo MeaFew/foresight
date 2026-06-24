@@ -63,7 +63,8 @@ class TimeSeriesDataset(Dataset):
         # select_dtypes(include=[np.number]).
         _exclude = {"date", "sales", "sales_log", "id", "store_nbr", "family"}
         numeric_cols = [
-            c for c in self.df.columns
+            c
+            for c in self.df.columns
             if c not in _exclude and pd.api.types.is_numeric_dtype(self.df[c])
         ]
         self.numeric_cols = numeric_cols
@@ -84,21 +85,15 @@ class TimeSeriesDataset(Dataset):
         # is ~50× faster and the single-threaded loader keeps up with the GPU.
         self.n_stores = self.df["store_nbr"].nunique()
         self.n_families = self.df["family"].nunique()
-        self.groups_cat = []   # list of (len_i, 2) int64 arrays per series
-        self.groups_num = []   # list of (len_i, num_numeric) float32 arrays
-        self.groups_y = []     # list of (len_i,) float32 arrays (sales_log) per series
+        self.groups_cat = []  # list of (len_i, 2) int64 arrays per series
+        self.groups_num = []  # list of (len_i, num_numeric) float32 arrays
+        self.groups_y = []  # list of (len_i,) float32 arrays (sales_log) per series
         self.groups_date = []  # list of (len_i,) datetime64 arrays per series
         for _, g in self.df.groupby(["store_nbr", "family"], sort=False):
             g = g.reset_index(drop=True)
-            self.groups_cat.append(
-                g[["store_nbr", "family"]].to_numpy(dtype=np.int64)
-            )
-            self.groups_num.append(
-                g[self.numeric_cols].to_numpy(dtype=np.float32)
-            )
-            self.groups_y.append(
-                g["sales_log"].to_numpy(dtype=np.float32)
-            )
+            self.groups_cat.append(g[["store_nbr", "family"]].to_numpy(dtype=np.int64))
+            self.groups_num.append(g[self.numeric_cols].to_numpy(dtype=np.float32))
+            self.groups_y.append(g["sales_log"].to_numpy(dtype=np.float32))
             self.groups_date.append(g["date"].to_numpy())
         # Free the raw frame — all data now lives in the per-series arrays.
         self.df = None
