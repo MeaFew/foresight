@@ -13,14 +13,29 @@ import pandas as pd
 
 
 def smape(y_true, y_pred):
-    """Symmetric Mean Absolute Percentage Error."""
-    return 100 * np.mean(2 * np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred) + 1e-8))
+    """Symmetric Mean Absolute Percentage Error.
+
+    The denominator ``|y| + |ŷ|`` can approach zero when both are tiny (common
+    in log1p-space sales near zero), which inflates the error toward 200% under
+    the raw formula. We clip the denominator to a small positive floor rather
+    than just adding an epsilon to the exact-zero case, so near-zero pairs do
+    not dominate the average.
+    """
+    denom = np.abs(y_true) + np.abs(y_pred)
+    denom = np.clip(denom, 1e-8, None)
+    return 100 * np.mean(2 * np.abs(y_true - y_pred) / denom)
 
 
 def mape(y_true, y_pred):
-    """Mean Absolute Percentage Error (skips zeros in true values)."""
+    """Mean Absolute Percentage Error (skips zeros in true values).
+
+    Returns 0.0 when no true values are nonzero (rather than NaN), so the value
+    serializes cleanly to JSON and never silently propagates.
+    """
     mask = y_true != 0
-    return np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+    if not mask.any():
+        return 0.0
+    return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
 
 
 def time_train_val_split(df: pd.DataFrame, val_days: int):

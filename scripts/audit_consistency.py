@@ -13,13 +13,16 @@ from pathlib import Path
 
 
 def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
-    """Extract a numeric metric from README.md table rows.
+    """Extract the first number following ``metric_name`` in README.md.
 
-    Looks for patterns like `| XGBoost | **0.256** | ...`
+    Handles table rows like ``| XGBoost | **0.257** | ...`` as well as plain
+    text. Returns ``None`` if no number follows the marker.
     """
     text = readme_path.read_text(encoding="utf-8")
-    pattern = rf"\*\*{re.escape(metric_name)}\*\*\*.*?(\d+\.\d+)"
-    match = re.search(pattern, text)
+    # Match the metric name, then the first number that appears after it
+    # (allowing markdown emphasis like ** and | between them).
+    pattern = rf"{re.escape(metric_name)}.*?(\d+\.\d+)"
+    match = re.search(pattern, text, flags=re.DOTALL)
     if match:
         return float(match.group(1))
     return None
@@ -143,11 +146,22 @@ def main():
 
         if xgb_entry and xgb_entry.get("mae") is not None:
             actual_mae = xgb_entry["mae"]
-            # README claims XGBoost MAE=0.256
-            ok(
-                abs(actual_mae - 0.256) < 0.01,
-                f"XGBoost MAE: README ~0.256 vs actual {actual_mae:.4f} (diff={abs(actual_mae - 0.256):.4f})",
-            )
+            # Cross-reference against the README value rather than a hardcoded
+            # literal, so this audit fails loudly if README and code drift.
+            readme_path = root / "README.md"
+            readme_xgb_mae = read_readme_metric(readme_path, "XGBoost")
+            if readme_xgb_mae is not None:
+                ok(
+                    abs(actual_mae - readme_xgb_mae) < 0.01,
+                    f"XGBoost MAE: README {readme_xgb_mae} vs actual {actual_mae:.4f} "
+                    f"(diff={abs(actual_mae - readme_xgb_mae):.4f})",
+                )
+            else:
+                ok(
+                    False,
+                    "Could not parse XGBoost MAE from README.md — add it to the "
+                    "results table so this audit can cross-check.",
+                )
 
     # ── Check 5: config.py paths are consistent ──
     print("\n[5] Config path consistency")

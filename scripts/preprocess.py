@@ -81,8 +81,19 @@ def merge_external(
     if oil is not None:
         oil = oil.copy()
         oil["date"] = pd.to_datetime(oil["date"])
-        oil["dcoilwtico"] = oil["dcoilwtico"].interpolate(method="linear")
+        oil = oil.sort_values("date").reset_index(drop=True)
+        # CAUSAL fill only: a day's oil price must never be derived from a
+        # LATER day's price. Bidirectional `interpolate(method="linear")` would
+        # let future oil prices leak into past-day features (and into the
+        # validation window from the training tail). We forward-fill (carry the
+        # most recent known price forward), then back-fill ONLY to cover leading
+        # NaNs before the first observation (a date with no known future price
+        # yet — safe, since the first known value is the earliest observation).
+        oil["dcoilwtico"] = oil["dcoilwtico"].ffill().bfill()
         df = df.merge(oil[["date", "dcoilwtico"]], on="date", how="left")
+        # Rows whose date precedes the first oil observation stay NaN after the
+        # merge; ffill/bfill on the merged frame again uses only the nearest
+        # available price without crossing the time boundary improperly.
         df["dcoilwtico"] = df["dcoilwtico"].ffill().bfill()
 
     if holidays is not None:

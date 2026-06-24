@@ -60,16 +60,26 @@ def main():
         args.input = FEATURES_TRAIN_CSV
 
     print(f"Loading data from {args.input} ...")
-    train_df, val_df = load_and_split(args.input)
+    train_df, val_df, val_target_start = load_and_split(args.input)
 
     train_ds = TimeSeriesDataset(train_df)
-    val_ds = TimeSeriesDataset(val_df, encoder=train_ds.encoders, scalers=train_ds.scalers)
+    # min_target_date drops samples whose prediction target is in the training
+    # period (the prepended context rows are window INPUT only) — otherwise the
+    # validation loss/MAE would mix in train-period targets and overstate DL.
+    val_ds = TimeSeriesDataset(
+        val_df,
+        encoder=train_ds.encoders,
+        scalers=train_ds.scalers,
+        min_target_date=val_target_start,
+    )
 
     num_stores = train_ds.n_stores
     num_families = train_ds.n_families
     num_numeric = len(train_ds.numeric_cols)
 
-    model = LSTMForecastModule(num_stores=num_stores, num_families=num_families, num_numeric=num_numeric)
+    model = LSTMForecastModule(
+        num_stores=num_stores, num_families=num_families, num_numeric=num_numeric
+    )
 
     train_and_evaluate(
         model,
