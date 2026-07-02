@@ -55,7 +55,6 @@ Dashboard ──> Forecast comparison, error distribution, residual analysis
 
 ```bash
 git clone https://github.com/MeaFew/foresight.git
-| Graph Fraud Detection | [MeaFew/graphguard](https://github.com/MeaFew/graphguard) | GNN illicit transaction detection (Elliptic) |
 cd foresight
 
 # Download real dataset (GitHub Releases, ~21MB)
@@ -127,12 +126,12 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 |-------|-----|------|------|--------|---------|
 | XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
 | Prophet (aggregated) | — | — | — | — | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
-| LSTM | **~0.121** | **~0.150** | **~1.35%** | ~1.34% | Subset (26K rows, top 20 groups) |
-| Transformer | **~0.170** | **~0.210** | **~1.91%** | ~1.88% | Subset (26K rows, top 20 groups) |
+| LSTM | **0.269** | **0.399** | **12.71%** | 40.66% | Full (3M rows, 54 stores) |
+| Transformer | **0.282** | **0.410** | **12.76%** | 40.61% | Full (3M rows, 54 stores) |
 
-> **LSTM/Transformer metrics** are expected benchmark values from DL training on the curated subset. Run `make train-lstm` and `make train-transformer` to generate these results on your own data. The metrics will be written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Actual values may vary slightly depending on random initialization and hardware.
+> **LSTM/Transformer metrics** are actual full-dataset results produced by PyTorch Lightning training on the same validation window as XGBoost. Run `make train-lstm` and `make train-transformer` to regenerate them; metrics are written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Latest values are reconciled with `reports/model_results.json` and `README.md`.
 
-> ***sMAPE is NOT comparable across rows**: XGBoost metrics are from 5-fold CV on the full dataset (54 stores x 33 product families, ~3M rows). LSTM/Transformer metrics are from a curated subset (top 20 store-family combinations by volume, 26K rows) due to DL training time constraints on the full dataset. Direct comparison of sMAPE / MAPE across different validation sets is meaningless — the subset has lower variance and thus lower percentage error. All MAE/RMSE/MAPE values are computed in log1p(sales) space.
+> All MAE/RMSE/MAPE values are computed in log1p(sales) space. XGBoost metrics are from 5-fold CV on the full dataset; LSTM/Transformer metrics are from a single holdout validation on the full dataset.
 
 ## Data
 

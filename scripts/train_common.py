@@ -218,7 +218,7 @@ def train_and_evaluate(
     # epoch's. Without this, EarlyStopping + checkpoint selection have no effect
     # on the model actually used for inference.
     if checkpoint.best_model_path:
-        best = torch.load(checkpoint.best_model_path, map_location="cpu")
+        best = torch.load(checkpoint.best_model_path, map_location="cpu", weights_only=True)
         model.load_state_dict(best["state_dict"] if "state_dict" in best else best)
 
     # Evaluate on the validation split.

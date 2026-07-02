@@ -101,7 +101,7 @@ def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
         num_families=len(meta["encoders"]["family"].classes_),
         num_numeric=len(meta["numeric_cols"]),
     )
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
     model.eval()
 
     all_preds = []
@@ -136,7 +136,7 @@ def load_transformer_and_predict(df: pd.DataFrame, min_target_date=None):
         num_families=len(meta["encoders"]["family"].classes_),
         num_numeric=len(meta["numeric_cols"]),
     )
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
     model.eval()
 
     all_preds = []

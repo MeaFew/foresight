@@ -13,18 +13,19 @@ from pathlib import Path
 
 
 def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
-    """Extract the first number following ``metric_name`` in README.md.
+    """Extract the first number in the markdown table row for ``metric_name``.
 
-    Handles table rows like ``| XGBoost | **0.257** | ...`` as well as plain
-    text. Returns ``None`` if no number follows the marker.
+    Looks for a line starting with ``| <metric_name> |`` and returns the first
+    decimal number found on that row. This avoids matching unrelated numbers
+    that appear earlier in the README text.
     """
     text = readme_path.read_text(encoding="utf-8")
-    # Match the metric name, then the first number that appears after it
-    # (allowing markdown emphasis like ** and | between them).
-    pattern = rf"{re.escape(metric_name)}.*?(\d+\.\d+)"
-    match = re.search(pattern, text, flags=re.DOTALL)
-    if match:
-        return float(match.group(1))
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(f"| {metric_name}"):
+            match = re.search(r"(\d+\.\d+)", stripped)
+            if match:
+                return float(match.group(1))
     return None
 
 
