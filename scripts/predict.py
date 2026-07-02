@@ -26,6 +26,7 @@ from config import (
     MODELS_DIR,
     REPORTS_DIR,
     TRANSFORMER_MODEL_PATH,
+    VAL_DAYS,
     XGBOOST_MODEL_PATH,
 )
 from scripts.metrics import TimeSeriesDataset, mape, smape
@@ -178,7 +179,10 @@ def main():
         help="Model to use (default: best from results)",
     )
     parser.add_argument(
-        "--val_days", type=int, default=16, help="Days to use as validation/holdout"
+        "--val_days",
+        type=int,
+        default=VAL_DAYS,
+        help="Days to use as validation/holdout (default: config.VAL_DAYS)",
     )
     parser.add_argument("--output", type=Path, default=REPORTS_DIR / "predictions.csv")
     args = parser.parse_args()
@@ -227,9 +231,15 @@ def main():
     if "sales_log" in val_df.columns:
         y_true = val_df["sales_log"].values
         y_pred_arr = np.array(y_pred)
-        # If lengths still differ (e.g. a series too short to form a window),
-        # truncate to the common length rather than misaligning.
+        # If lengths differ (e.g. a series too short to form an encoder window),
+        # truncate to the common length rather than silently misaligning rows.
+        # A mismatch on a real validation set usually signals an upstream bug,
+        # so warn loudly instead of hiding it.
         if len(y_true) != len(y_pred_arr):
+            print(
+                f"[WARN] length mismatch: y_true={len(y_true)} vs y_pred={len(y_pred_arr)}; "
+                "truncating to common length. Investigate the upstream alignment."
+            )
             min_len = min(len(y_true), len(y_pred_arr))
             y_true = y_true[:min_len]
             y_pred_arr = y_pred_arr[:min_len]

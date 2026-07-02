@@ -193,16 +193,16 @@ def plot_residuals(results):
     Tries to use pre-computed residuals from results JSON first,
     then falls back to computing them on-the-fly from the XGBoost model.
     """
-    # First, try to find pre-computed residuals in results
+    # First, try to find pre-computed residuals in results. Pick the entry
+    # with the lowest MAE among those that carry a "residuals" field.
     best_metrics = None
     for key in ["baseline_results", "lstm_results", "transformer_results"]:
         for entry in results.get(key, []):
-            if "residuals" in entry:
-                residuals = np.array(entry["residuals"])
-                if best_metrics is None or entry.get("mae", float("inf")) < best_metrics.get(
-                    "mae", float("inf")
-                ):
-                    best_metrics = entry
+            if "residuals" in entry and (
+                best_metrics is None
+                or entry.get("mae", float("inf")) < best_metrics.get("mae", float("inf"))
+            ):
+                best_metrics = entry
 
     # If no pre-computed residuals, compute on-the-fly
     if best_metrics is None or "residuals" not in best_metrics:
@@ -219,8 +219,6 @@ def plot_residuals(results):
         }
     else:
         residuals = np.array(best_metrics["residuals"])
-
-    residuals = np.array(best_metrics["residuals"])
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 

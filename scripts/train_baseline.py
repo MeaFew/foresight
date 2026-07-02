@@ -23,13 +23,18 @@ from config import (
     MODELS_DIR,
     RANDOM_STATE,
     REPORTS_DIR,
+    VAL_DAYS,
     XGBOOST_MODEL_PATH,
 )
 from scripts.metrics import mape, smape
 
 
-def split_train_val(df: pd.DataFrame, val_days: int = 16) -> tuple:
-    """Split by time — last N days as validation."""
+def split_train_val(df: pd.DataFrame, val_days: int = VAL_DAYS) -> tuple:
+    """Split by time — last N days as validation.
+
+    Default ``val_days`` tracks ``config.VAL_DAYS`` so the baseline split cannot
+    drift from the value every other stage (DL training, evaluate) uses.
+    """
     max_date = df["date"].max()
     val_start = max_date - pd.Timedelta(days=val_days - 1)
 
