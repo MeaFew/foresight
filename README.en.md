@@ -1,9 +1,21 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
-  <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
-  <a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
-</p>
+<div align="center">
+
+# Foresight
+
+**Multivariate Time Series Forecasting**
+
+*LSTM · Transformer · XGBoost · Leakage Prevention*
+
+<img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
+<img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
+<a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
+
+<a href="./README.md">中文</a> | **English**
+
+</div>
+
+---
 
 ## Overview
 

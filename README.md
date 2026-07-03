@@ -1,20 +1,46 @@
-# 多元时间序列预测
+<div align="center">
+
+# Foresight
+
+**多变量时间序列预测**
+
+*LSTM · Transformer · XGBoost · 防泄漏*
+
+<img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
+<img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
+<a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
+
+🏠 **主仓：<a href="https://gitee.com/zeroonei1/foresight">Gitee</a>** &nbsp;|&nbsp;
+🔗 <a href="https://github.com/MeaFew/foresight">GitHub（自动同步）</a>
+
+**中文** | <a href="./README.en.md">English</a>
+
+</div>
+
+---
+
+## 核心结论
+
+> **XGBoost 最优：MAE = 0.257、RMSE = 0.381**（log1p 空间）。
+> 一个诚实的负面结果——**深度学习（LSTM / Transformer）在本数据集上并未超过梯度提升基线**。
+
+本管线在特征工程充分（40+ 维 lag / rolling / 节假日 / 油价特征）的表格类时序数据上系统对比了 XGBoost、Prophet、LSTM、Transformer。结论明确：**手工特征覆盖长程依赖后，梯度提升对结构化特征利用更高效，DL 未必优于基线**——这本身是有价值的工程发现。
+
+| 模型 | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE | 数据集 |
+|------|-------|--------|--------|-------|--------|
+| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% | 全量（230 万行训练 + 尾部 16 天验证） |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 全量（同上，GPU 训练） |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 全量（同上，GPU 训练） |
+| Prophet | — | — | — | — | *需 pystan 编译工具链，已在 Docker/Linux CI 验证通过* |
+
+> LSTM 与 Transformer 均已按**三处泄漏修复**重跑，修复逻辑通过 `tests/test_pipeline.py::TestLeakagePrevention` 验证。指标以 `reports/model_results.json` 为准。
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/PyTorch-2.1-red?logo=pytorch&logoColor=white" alt="PyTorch">
-  <img src="https://img.shields.io/badge/Lightning-2.0-purple?logo=pytorchlightning&logoColor=white" alt="PyTorch Lightning">
-  <a href="https://github.com/MeaFew/foresight/actions"><img src="https://github.com/MeaFew/foresight/workflows/CI/badge.svg" alt="CI"></a>
+  <img src="images/forecast_comparison.png" alt="预测对比图：XGBoost / LSTM / Transformer vs 真实值">
 </p>
 
-<p align="center">
-  🏠 <b>主仓：<a href="https://gitee.com/zeroonei1/foresight">Gitee</a></b> &nbsp;|&nbsp;
-  🔗 <a href="https://github.com/MeaFew/foresight">GitHub（自动同步）</a>
-</p>
-
-<p align="center">
-  <b>中文</b> | <a href="./README.en.md">English</a>
-</p>
+---
 
 ## 项目简介
 
@@ -27,6 +53,14 @@
 - **特征工程**：滞后特征（1/7/14/28/364 天）、滚动统计量、周期性季节编码、促销聚合
 - **多指标评估**：MAE、RMSE、MAPE、sMAPE，跨模型横向比较
 - **交互式交付**：Streamlit 仪表板，预测值 vs 真实值可视化
+
+## 防泄漏说明（重要卖点）
+
+时序建模中泄漏会系统性高估指标。本管线修正了三处：
+
+- **油价滞后（oil_lag）按日序列计算**：早期对长表直接 `shift(1)` 会跨 (store,family) 组边界，现改为在 date-unique 帧上算 `shift(1)` 再 merge 回，保证 `oil_lag_1` 始终是前一日的油价。
+- **油价缺失因果填充**：早期用 `interpolate(method="linear")` 是双向插值（用未来油价插值到验证窗），现改为仅 `ffill().bfill()`，任意一日的油价绝不来自更晚的观测。
+- **DL 验证目标过滤**：`TimeSeriesDataset(min_target_date=val_start)` 只发射目标日期 ≥ val_start 的样本，验证集前 28 天训练尾部仅作窗口输入、绝不作预测目标混入验证 loss/MAE。
 
 ## 架构流程
 
@@ -120,9 +154,7 @@ make verify
 └── requirements.txt
 ```
 
-## 模型对比
-
-### 基准参照
+## 基准参照
 
 基于 [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting)（评估指标：RMSLE，越低越好）。
 
@@ -136,20 +168,8 @@ make verify
 
 > 注：对数变换前后的 RMSLE 不可直接对比。Kaggle 使用原始尺度 RMSLE，本地验证使用对数尺度的 MAE/MAPE 以保证训练稳定性。
 
-### 实验结果
-
-| 模型 | MAE | RMSE | MAPE | sMAPE* | 数据集 |
-|------|-----|------|------|--------|--------|
-| XGBoost | **0.257** | **0.381** | **12.02%** | 39.47% | 全量（230 万行训练 + 尾部 16 天验证） |
-| Prophet | — | — | — | — | *（需 pystan 编译工具链；已在 Docker/Linux CI 验证通过）* |
-| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 全量（同上，GPU 训练） |
-| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 全量（同上，GPU 训练） |
-
-> LSTM 与 Transformer 均已按三处泄漏修复重跑（验证目标过滤 + 因果油价填充 + oil_lag 按日序列）。修复逻辑本身亦通过 `tests/test_pipeline.py::TestLeakagePrevention` 验证。最新值以 `reports/model_results.json` 为准。
-
-> 以上均为在 **log1p(sales) 空间**评估的真实结果（非预期值）。LSTM/Transformer 在 RTX 4060 上用 PyTorch Lightning 训练（bf16 混合精度，batch=1024，early stopping），指标写入 `reports/model_results.json`。
-
-> **诚实的结论**：在特征工程充分（lag/rolling/节假日/油价等 40+ 维特征）的表格类时序数据上，**XGBoost 略优于 DL 模型**。这是符合预期的——梯度提升对结构化特征利用更高效，而 DL 的优势（自动特征学习、长程依赖）在本数据集已被手工特征覆盖。LSTM 接近 XGBoost（MAE 差 0.012），Transformer 稍逊。改进方向：DL 模型可尝试更长的训练、更大的 d_model、或 N-BEATS/TFT 等专用时序架构。
+<details>
+<summary><b>📊 详细实验说明（训练速度、改进方向）</b></summary>
 
 ### 训练速度（230 万样本 / RTX 4060）
 
@@ -157,24 +177,20 @@ make verify
 
 | 优化项 | 说明 |
 |--------|------|
-| `num_workers=4 + persistent_workers` | 4 进程并行 `__getitem__`，worker 只 spawn 一次并跨 epoch 复用（不再每 epoch 重复拷贝数据集） |
+| `num_workers=4 + persistent_workers` | 4 进程并行 `__getitem__`，worker 只 spawn 一次并跨 epoch 复用 |
 | `prefetch_factor=4` | 预取队列保持 GPU 不空载 |
 | `pin_memory + non_blocking` | host→device 拷贝与计算重叠 |
 | `cudnn.benchmark=True` | 固定 28 步窗口下自动选最快 kernel |
 | `bf16-mixed` precision | Ada Tensor Core 加速 |
-| `batch_size=1024` | 降低 kernel-launch 开销主导（bs=128 时 72s/epoch → bs=1024 时 38s/epoch） |
+| `batch_size=1024` | 降低 kernel-launch 开销（bs=128 时 72s/epoch → bs=1024 时 38s/epoch） |
 
 > 可通过 CLI 微调：`python scripts/train_lstm.py --num_workers 8 --batch_size 2048`。若长训练被中断，`--resume` 会从 `reports/checkpoints/` 的最新 checkpoint 续训。
 
-### 防泄漏说明（重要）
+### DL 未胜出的原因与改进方向
 
-时序建模中泄漏会系统性高估指标。本管线修正了三处：
+LSTM 接近 XGBoost（MAE 差 0.012），Transformer 稍逊。改进方向：DL 模型可尝试更长的训练、更大的 `d_model`，或 N-BEATS / TFT 等专用时序架构。
 
-- **油价滞后（oil_lag）按日序列计算**：早期版本对长表直接 `shift(1)`，会跨 (store,family) 组边界——第一个序列的滞后是 NaN，后续序列的"滞后"指向上一组同日值，而非"昨日的油价"。现改为在 date-unique 帧上算 `shift(1)` 再 merge 回，保证 `oil_lag_1` 始终是前一日的油价。
-- **油价缺失因果填充**：早期版本用 `interpolate(method="linear")`，这是双向插值——某日的油价会被用**未来**油价插值出来，泄漏到验证窗。现改为仅 `ffill().bfill()`（因果前向填充，bfill 只补首段无前值的行），任意一日的油价绝不来自更晚的观测。
-- **DL 验证目标过滤**：为给验证集前 28 天提供窗口上下文，`load_and_split` 会在验证帧前拼接 28 天训练尾部作为窗口输入。早期版本未过滤，导致这 28 天的训练期日期被当作 DL 的预测目标混入验证 loss/MAE。现 `TimeSeriesDataset(min_target_date=val_start)` 只发射目标日期 ≥ val_start 的样本，验证集上下文行仅作窗口输入、绝不作预测目标。
-
-> `predict.py` 的 DL 推理路径同步修正：以前传整张 df 给 `TimeSeriesDataset` 再用任意尾部切片对齐，现在只传"上下文 + 验证窗"并按 `min_target_date` 过滤，预测与验证行一一对应。
+</details>
 
 ## 数据说明
 
