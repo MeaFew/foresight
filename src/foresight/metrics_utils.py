@@ -5,7 +5,7 @@ contexts (unit tests, CI matrices without the deep-learning stack) and reused
 by baseline models that don't need PyTorch.
 
 ``scripts.metrics`` re-exports these for backwards compatibility — existing
-``from scripts.metrics import mape, smape`` statements keep working.
+``from foresight.metrics import mape, smape`` statements keep working.
 """
 
 import numpy as np

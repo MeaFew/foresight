@@ -2,21 +2,16 @@
 
 Architecture: positional encoding + embedding for categorical features ->
 Transformer encoder -> FC head. Training/evaluation plumbing is shared via
-scripts/train_common.py.
+foresight/train_common.py.
 """
 
 import math
-import sys
-from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from train_common import BaseForecastModule, build_arg_parser, load_and_split, train_and_evaluate
-
-from config import (
+from foresight.config import (
     D_MODEL,
     DROPOUT,
     FEATURES_TRAIN_CSV,
@@ -26,7 +21,16 @@ from config import (
     RANDOM_STATE,
     TRANSFORMER_MODEL_PATH,
 )
-from scripts.metrics import TimeSeriesDataset
+from foresight.logging_setup import get_logger, setup_logging
+from foresight.metrics import TimeSeriesDataset
+from foresight.train_common import (
+    BaseForecastModule,
+    build_arg_parser,
+    load_and_split,
+    train_and_evaluate,
+)
+
+logger = get_logger(__name__)
 
 
 class PositionalEncoding(nn.Module):
@@ -102,7 +106,7 @@ def main():
     if args.input is None:
         args.input = FEATURES_TRAIN_CSV
 
-    print(f"Loading data from {args.input} ...")
+    logger.info(f"Loading data from {args.input} ...")
     train_df, val_df, val_target_start = load_and_split(args.input)
 
     train_ds = TimeSeriesDataset(train_df)
@@ -139,4 +143,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

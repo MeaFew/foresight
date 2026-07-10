@@ -14,12 +14,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import (
+from foresight.config import (
     CLEANED_TRAIN_CSV,
     PROCESSED_DATA_DIR,
     RAW_DATA_DIR,
 )
+from foresight.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def load_raw_data() -> dict[str, pd.DataFrame]:
@@ -36,9 +38,9 @@ def load_raw_data() -> dict[str, pd.DataFrame]:
     for name, path in files.items():
         if path.exists():
             data[name] = pd.read_csv(path)
-            print(f"  Loaded {name}: {data[name].shape}")
+            logger.info(f"  Loaded {name}: {data[name].shape}")
         else:
-            print(f"  Warning: {path} not found")
+            logger.info(f"  Warning: {path} not found")
     return data
 
 
@@ -110,10 +112,10 @@ def merge_external(
 
 def preprocess(data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Full preprocessing pipeline."""
-    print("Preprocessing sales data ...")
+    logger.info("Preprocessing sales data ...")
     sales = preprocess_sales(data["train"])
 
-    print("Merging external data ...")
+    logger.info("Merging external data ...")
     sales = merge_external(sales, data.get("oil"), data.get("holidays"))
 
     # Merge store metadata
@@ -141,14 +143,15 @@ def main():
     cleaned = preprocess(data)
 
     cleaned.to_csv(CLEANED_TRAIN_CSV, index=False)
-    print(f"\nSaved: {CLEANED_TRAIN_CSV} ({cleaned.shape})")
+    logger.info(f"\nSaved: {CLEANED_TRAIN_CSV} ({cleaned.shape})")
 
     # Print date range info
-    print(f"Date range: {cleaned['date'].min()} to {cleaned['date'].max()}")
-    print(f"Unique stores: {cleaned['store_nbr'].nunique()}")
-    print(f"Unique families: {cleaned['family'].nunique()}")
-    print(f"Total rows: {len(cleaned):,}")
+    logger.info(f"Date range: {cleaned['date'].min()} to {cleaned['date'].max()}")
+    logger.info(f"Unique stores: {cleaned['store_nbr'].nunique()}")
+    logger.info(f"Unique families: {cleaned['family'].nunique()}")
+    logger.info(f"Total rows: {len(cleaned):,}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

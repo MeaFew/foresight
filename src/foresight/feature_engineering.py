@@ -16,8 +16,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import CLEANED_TRAIN_CSV, FEATURES_TRAIN_CSV, PROCESSED_DATA_DIR
+from foresight.config import CLEANED_TRAIN_CSV, FEATURES_TRAIN_CSV, PROCESSED_DATA_DIR
+from foresight.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def create_lag_features(df: pd.DataFrame, lags: list[int]) -> pd.DataFrame:
@@ -78,25 +80,25 @@ def create_promo_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
     """Full feature engineering pipeline."""
-    print("Building time series features ...")
+    logger.info("Building time series features ...")
 
     df = df.copy()
     df = df.sort_values(["store_nbr", "family", "date"])
     # Data is explicitly sorted by store, family, date above -- ensures time-aware shift(1) is correct for lag/rolling features
 
-    print("  Lag features ...")
+    logger.info("  Lag features ...")
     df = create_lag_features(df, lags=[1, 7, 14, 28, 364])
 
-    print("  Rolling features ...")
+    logger.info("  Rolling features ...")
     df = create_rolling_features(df, windows=[7, 14, 28, 60])
 
-    print("  Expanding features ...")
+    logger.info("  Expanding features ...")
     df = create_expanding_features(df)
 
-    print("  Seasonal features ...")
+    logger.info("  Seasonal features ...")
     df = create_seasonal_features(df)
 
-    print("  Promo features ...")
+    logger.info("  Promo features ...")
     df = create_promo_features(df)
 
     # Oil price lag. Oil is a SINGLE daily series shared across all
@@ -115,10 +117,10 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         df = df.merge(oil_daily[["date", "oil_lag_1"]], on="date", how="left")
 
     # Drop rows with too many NaNs (mainly from lags)
-    print("  Dropping rows with missing features ...")
+    logger.info("  Dropping rows with missing features ...")
     before = len(df)
     df = df.dropna(subset=[c for c in df.columns if "lag" in c or "roll" in c])
-    print(f"  Kept {len(df):,} / {before:,} rows")
+    logger.info(f"  Kept {len(df):,} / {before:,} rows")
 
     return df
 
@@ -133,8 +135,9 @@ def main():
     featured = build_features(df)
 
     featured.to_csv(FEATURES_TRAIN_CSV, index=False)
-    print(f"\nSaved: {FEATURES_TRAIN_CSV} ({featured.shape})")
+    logger.info(f"\nSaved: {FEATURES_TRAIN_CSV} ({featured.shape})")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

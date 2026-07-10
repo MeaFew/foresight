@@ -7,8 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 
 @pytest.fixture(scope="module")
 def mock_data():
@@ -57,7 +55,7 @@ class TestPreprocess:
 
 class TestFeatureEngineering:
     def test_lag_features(self, mock_data):
-        from scripts.feature_engineering import create_lag_features
+        from foresight.feature_engineering import create_lag_features
 
         df = create_lag_features(mock_data, lags=[1, 7])
         assert "sales_lag_1" in df.columns
@@ -65,14 +63,14 @@ class TestFeatureEngineering:
         assert df["sales_lag_1"].isna().sum() > 0  # First row per group is NaN
 
     def test_rolling_features(self, mock_data):
-        from scripts.feature_engineering import create_rolling_features
+        from foresight.feature_engineering import create_rolling_features
 
         df = create_rolling_features(mock_data, windows=[7])
         assert "sales_roll_mean_7" in df.columns
         assert "sales_roll_std_7" in df.columns
 
     def test_seasonal_features(self, mock_data):
-        from scripts.feature_engineering import create_seasonal_features
+        from foresight.feature_engineering import create_seasonal_features
 
         df = create_seasonal_features(mock_data)
         assert "month_sin" in df.columns
@@ -81,7 +79,7 @@ class TestFeatureEngineering:
         assert df["month_sin"].between(-1, 1).all()
 
     def test_full_pipeline(self, mock_data):
-        from scripts.feature_engineering import build_features
+        from foresight.feature_engineering import build_features
 
         df = build_features(mock_data)
         assert len(df) > 0
@@ -91,7 +89,7 @@ class TestFeatureEngineering:
 class TestDataset:
     def test_dataset_length(self, mock_data):
         pytest.importorskip("pytorch_lightning")
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         df = mock_data.copy()
         df["family"] = "GROCERY"
@@ -102,7 +100,7 @@ class TestDataset:
         pytest.importorskip("pytorch_lightning")
         import torch
 
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         df = mock_data.copy()
         df["family"] = "GROCERY"
@@ -141,7 +139,7 @@ class TestLeakagePrevention:
         group boundaries. We build a frame where two stores share the same
         dates and verify every row for a given date gets the SAME oil_lag_1
         (yesterday's oil), regardless of its row position."""
-        from scripts.feature_engineering import build_features
+        from foresight.feature_engineering import build_features
 
         dates = pd.date_range("2022-01-01", periods=10, freq="D")
         rows = []
@@ -192,7 +190,7 @@ class TestLeakagePrevention:
         prepended context rows are window INPUT only. Otherwise train-period
         targets leak into the validation MAE."""
         pytest.importorskip("pytorch_lightning")
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         dates = pd.date_range("2022-01-01", periods=60, freq="D")
         df = pd.DataFrame(
@@ -221,7 +219,7 @@ class TestLeakagePrevention:
         price. We insert an interior NaN and assert it is filled with the
         PRECEDING known value (forward-fill), not interpolated from the next
         value."""
-        from scripts.preprocess import merge_external
+        from foresight.preprocess import merge_external
 
         oil = pd.DataFrame(
             {

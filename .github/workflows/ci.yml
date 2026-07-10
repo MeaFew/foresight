@@ -15,10 +15,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff
-      - run: ruff check scripts/ tests/ dashboard/
-      - run: ruff format --check scripts/ tests/ dashboard/
+      - run: ruff check src/ tests/ dashboard/
+      - run: ruff format --check src/ tests/ dashboard/
 
   test:
+    # CI installs only the lightweight test deps (no torch/lightning);
+    # torch-dependent tests use pytest.importorskip.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,4 +34,17 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
       - run: pip install -r requirements-test.txt
-      - run: pytest tests/ -v --tb=short
+      - run: pip install -e ".[dev]"
+      - name: Run tests with coverage
+        run: pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=25
+
+  typecheck:
+    # Gradual typing: mypy reports but does not block CI yet.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install mypy
+      - run: mypy src/foresight || true

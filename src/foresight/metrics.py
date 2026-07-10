@@ -5,7 +5,7 @@ Provides:
 - mape/smape: evaluation metrics (shared by baseline, LSTM, Transformer)
 
 ``mape``/``smape`` are pure-numpy and live in ``scripts.metrics_utils``; they
-are re-exported here so existing ``from scripts.metrics import mape, smape``
+are re-exported here so existing ``from foresight.metrics import mape, smape``
 imports keep working. Importing the torch-free helpers directly from
 ``metrics_utils`` avoids pulling in the PyTorch stack (useful in tests).
 """
@@ -16,8 +16,11 @@ import torch
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch.utils.data import Dataset
 
-from config import SEQ_LENGTH
-from scripts.metrics_utils import mape, smape
+from foresight.config import SEQ_LENGTH
+from foresight.logging_setup import get_logger
+from foresight.metrics_utils import mape, smape
+
+logger = get_logger(__name__)
 
 __all__ = ["mape", "smape", "TimeSeriesDataset"]
 

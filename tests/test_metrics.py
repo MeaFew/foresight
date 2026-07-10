@@ -18,11 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-repo_root = Path(__file__).parents[1].resolve()
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
-
-from scripts.metrics_utils import mape, smape  # noqa: E402
+from foresight.metrics_utils import mape, smape  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # mape
@@ -145,7 +141,7 @@ def small_ts_df():
 
 class TestTimeSeriesDataset:
     def test_fit_then_transform_produces_consistent_shapes(self, small_ts_df):
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         train_ds = TimeSeriesDataset(small_ts_df, seq_length=7)
         sample = train_ds[0]
@@ -157,7 +153,7 @@ class TestTimeSeriesDataset:
     def test_encoder_reuse_does_not_refit(self, small_ts_df):
         """A second dataset built with the first's encoders/scalers must not crash
         and must produce same column dtypes (no LabelEncoder refit)."""
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         train_ds = TimeSeriesDataset(small_ts_df, seq_length=7)
         # Reuse encoders on the same data (simulating validation set)
@@ -171,7 +167,7 @@ class TestTimeSeriesDataset:
 
     def test_seq_length_governs_window_count(self, small_ts_df):
         """Longer seq_length => fewer windows per series."""
-        from scripts.metrics import TimeSeriesDataset
+        from foresight.metrics import TimeSeriesDataset
 
         short = TimeSeriesDataset(small_ts_df, seq_length=5)
         long = TimeSeriesDataset(small_ts_df, seq_length=20)

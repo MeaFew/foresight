@@ -1,21 +1,24 @@
 """LSTM model for time series forecasting.
 
 Architecture: embedding for categorical features -> 2-layer LSTM -> FC head.
-Training/evaluation plumbing is shared via scripts/train_common.py.
+Training/evaluation plumbing is shared via foresight/train_common.py.
 """
-
-import sys
-from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from train_common import BaseForecastModule, build_arg_parser, load_and_split, train_and_evaluate
+from foresight.config import FEATURES_TRAIN_CSV, LEARNING_RATE, LSTM_MODEL_PATH, RANDOM_STATE
+from foresight.logging_setup import get_logger, setup_logging
+from foresight.metrics import TimeSeriesDataset
+from foresight.train_common import (
+    BaseForecastModule,
+    build_arg_parser,
+    load_and_split,
+    train_and_evaluate,
+)
 
-from config import FEATURES_TRAIN_CSV, LEARNING_RATE, LSTM_MODEL_PATH, RANDOM_STATE
-from scripts.metrics import TimeSeriesDataset
+logger = get_logger(__name__)
 
 
 class LSTMForecastModule(BaseForecastModule):
@@ -59,7 +62,7 @@ def main():
     if args.input is None:
         args.input = FEATURES_TRAIN_CSV
 
-    print(f"Loading data from {args.input} ...")
+    logger.info(f"Loading data from {args.input} ...")
     train_df, val_df, val_target_start = load_and_split(args.input)
 
     train_ds = TimeSeriesDataset(train_df)
@@ -94,4 +97,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

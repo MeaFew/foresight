@@ -3,13 +3,18 @@
 Run after `make all` to verify that key metrics declared in README.md
 match the actual values produced by the pipeline.
 
-Usage: python scripts/audit_consistency.py
+Usage: python -m foresight.audit_consistency
 """
 
 import json
+import logging
 import re
 import sys
 from pathlib import Path
+
+from foresight.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
@@ -32,14 +37,14 @@ def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
 def check(condition: bool, msg: str) -> bool:
     """Assert-like check that prints pass/fail."""
     if condition:
-        print(f"  PASS: {msg}")
+        logger.info(f"  PASS: {msg}")
     else:
-        print(f"  FAIL: {msg}")
+        logger.info(f"  FAIL: {msg}")
     return condition
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     results_json = root / "reports" / "model_results.json"
     models_dir = root / "models"
     data_raw = root / "data" / "raw"
@@ -54,7 +59,7 @@ def main():
             failed += 1
 
     # ── Check 1: model_results.json exists and has baseline_results ──
-    print("\n[1] model_results.json")
+    logger.info("\n[1] model_results.json")
 
     if not results_json.exists():
         ok(False, f"model_results.json not found at {results_json}")
@@ -84,7 +89,7 @@ def main():
             ok(True, "Transformer results present")
 
     # ── Check 2: README data size claims vs actual data ──
-    print("\n[2] README data size claims vs actual data")
+    logger.info("\n[2] README data size claims vs actual data")
 
     if data_raw.exists():
         train_csv = data_raw / "train.csv"
@@ -110,7 +115,7 @@ def main():
         ok(False, f"data/raw/ directory not found at {data_raw}")
 
     # ── Check 3: models directory has expected files ──
-    print("\n[3] Models directory")
+    logger.info("\n[3] Models directory")
 
     # XGBoost is the primary baseline and must always be present.
     required_models = ["xgboost_baseline.joblib"]
@@ -133,7 +138,7 @@ def main():
         ok(False, f"models/ directory not found at {models_dir}")
 
     # ── Check 4: XGBoost README metric vs model_results.json ──
-    print("\n[4] README XGBoost MAE vs model_results.json")
+    logger.info("\n[4] README XGBoost MAE vs model_results.json")
 
     if results_json.exists():
         with open(results_json) as f:
@@ -165,10 +170,9 @@ def main():
                 )
 
     # ── Check 5: config.py paths are consistent ──
-    print("\n[5] Config path consistency")
+    logger.info("\n[5] Config path consistency")
 
-    sys.path.insert(0, str(root))
-    from config import (
+    from foresight.config import (
         CLEANED_TRAIN_CSV,
         FEATURES_TRAIN_CSV,
         LSTM_MODEL_PATH,
@@ -195,12 +199,13 @@ def main():
 
     # ── Summary ──
     total = passed + failed
-    print(f"\n{'=' * 40}")
-    print(f"Results: {passed}/{total} passed, {failed} failed")
+    logger.info(f"\n{'=' * 40}")
+    logger.info(f"Results: {passed}/{total} passed, {failed} failed")
     if failed > 0:
-        print("ACTION: Update README.md or pipeline to resolve mismatches.")
+        logger.info("ACTION: Update README.md or pipeline to resolve mismatches.")
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

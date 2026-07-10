@@ -12,13 +12,11 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import torch
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from torch.utils.data import DataLoader
 
-from config import (
+from foresight.config import (
     BATCH_SIZE,
     FEATURES_TRAIN_CSV,
     LSTM_MODEL_PATH,
@@ -29,15 +27,18 @@ from config import (
     VAL_DAYS,
     XGBOOST_MODEL_PATH,
 )
-from scripts.metrics import TimeSeriesDataset, mape, smape
-from scripts.train_lstm import LSTMForecastModule
-from scripts.train_transformer import TransformerForecastModule
+from foresight.logging_setup import get_logger, setup_logging
+from foresight.metrics import TimeSeriesDataset, mape, smape
+from foresight.train_lstm import LSTMForecastModule
+from foresight.train_transformer import TransformerForecastModule
+
+logger = get_logger(__name__)
 
 
 def find_best_model():
     """Find the best model from model_results.json (lowest MAE)."""
     if not MODEL_RESULTS_JSON.exists():
-        print(f"[WARN] {MODEL_RESULTS_JSON} not found.")
+        logger.warning(f"[WARN] {MODEL_RESULTS_JSON} not found.")
         return None
 
     with open(MODEL_RESULTS_JSON) as f:
@@ -54,10 +55,10 @@ def find_best_model():
                 best_model = entry.get("model", key)
 
     if best_model is None:
-        print("[WARN] No valid model results found.")
+        logger.warning("[WARN] No valid model results found.")
         return None
 
-    print(f"Best model: {best_model} (MAE={best_mae:.4f})")
+    logger.info(f"Best model: {best_model} (MAE={best_mae:.4f})")
     return best_model
 
 
@@ -65,11 +66,11 @@ def load_xgboost_and_predict(df: pd.DataFrame):
     """Load XGBoost model and run inference."""
     model_path = XGBOOST_MODEL_PATH
     if not model_path.exists():
-        print(f"[SKIP] XGBoost model not found: {model_path}")
+        logger.info(f"[SKIP] XGBoost model not found: {model_path}")
         return None
 
     model = joblib.load(model_path)
-    print(f"Loaded XGBoost from {model_path}")
+    logger.info(f"Loaded XGBoost from {model_path}")
 
     exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -85,7 +86,7 @@ def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
     model_path = LSTM_MODEL_PATH
     meta_path = LSTM_MODEL_PATH.with_suffix(".meta.joblib")
     if not model_path.exists():
-        print(f"[SKIP] LSTM model not found: {model_path}")
+        logger.info(f"[SKIP] LSTM model not found: {model_path}")
         return None
 
     meta = joblib.load(meta_path)
@@ -111,7 +112,7 @@ def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
             y_hat = model(batch["cat"], batch["num"])
             all_preds.extend(y_hat.cpu().numpy())
 
-    print(f"Loaded LSTM from {model_path}")
+    logger.info(f"Loaded LSTM from {model_path}")
     return np.array(all_preds)
 
 
@@ -120,7 +121,7 @@ def load_transformer_and_predict(df: pd.DataFrame, min_target_date=None):
     model_path = TRANSFORMER_MODEL_PATH
     meta_path = TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib")
     if not model_path.exists():
-        print(f"[SKIP] Transformer model not found: {model_path}")
+        logger.info(f"[SKIP] Transformer model not found: {model_path}")
         return None
 
     meta = joblib.load(meta_path)
@@ -146,7 +147,7 @@ def load_transformer_and_predict(df: pd.DataFrame, min_target_date=None):
             y_hat = model(batch["cat"], batch["num"])
             all_preds.extend(y_hat.cpu().numpy())
 
-    print(f"Loaded Transformer from {model_path}")
+    logger.info(f"Loaded Transformer from {model_path}")
     return np.array(all_preds)
 
 
@@ -164,7 +165,7 @@ def predict_model(df: pd.DataFrame, model_name: str, min_target_date=None):
     elif model_name == "transformer":
         return load_transformer_and_predict(df, min_target_date=min_target_date)
     else:
-        print(f"[SKIP] Unknown model: {model_name}")
+        logger.info(f"[SKIP] Unknown model: {model_name}")
         return None
 
 
@@ -187,19 +188,19 @@ def main():
     parser.add_argument("--output", type=Path, default=REPORTS_DIR / "predictions.csv")
     args = parser.parse_args()
 
-    print(f"Loading data from {args.input} ...")
+    logger.info(f"Loading data from {args.input} ...")
     df = pd.read_csv(args.input, parse_dates=["date"])
 
     # Split off validation period
     max_date = df["date"].max()
     val_start = max_date - pd.Timedelta(days=args.val_days - 1)
     val_df = df[df["date"] >= val_start].copy()
-    print(f"Validation period: {val_start.date()} ~ {max_date.date()} ({len(val_df):,} rows)")
+    logger.info(f"Validation period: {val_start.date()} ~ {max_date.date()} ({len(val_df):,} rows)")
 
     # Determine model to use
     model_name = args.model or find_best_model()
     if model_name is None:
-        print("[SKIP] No model available for prediction.")
+        logger.info("[SKIP] No model available for prediction.")
         return
 
     # Run inference.
@@ -214,7 +215,7 @@ def main():
     #     validation row), instead of the old path that passed the FULL frame
     #     and then sliced tails arbitrarily.
     if model_name in ("lstm", "transformer"):
-        from config import SEQ_LENGTH
+        from foresight.config import SEQ_LENGTH
 
         context_start = val_start - pd.Timedelta(days=SEQ_LENGTH)
         dl_predict_df = df[df["date"] >= context_start].copy()
@@ -236,7 +237,7 @@ def main():
         # A mismatch on a real validation set usually signals an upstream bug,
         # so warn loudly instead of hiding it.
         if len(y_true) != len(y_pred_arr):
-            print(
+            logger.info(
                 f"[WARN] length mismatch: y_true={len(y_true)} vs y_pred={len(y_pred_arr)}; "
                 "truncating to common length. Investigate the upstream alignment."
             )
@@ -251,7 +252,7 @@ def main():
     # Save predictions
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     val_df.to_csv(args.output, index=False)
-    print(f"Predictions saved: {args.output}")
+    logger.info(f"Predictions saved: {args.output}")
 
     # Print metrics if ground truth available
     if y_true is not None and len(y_true) > 0 and len(y_pred_arr) > 0:
@@ -262,12 +263,13 @@ def main():
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred_arr)))
         mape_val = float(mape(y_true, y_pred_arr))
         smape_val = float(smape(y_true, y_pred_arr))
-        print(f"\n{model_name.upper()} Prediction Metrics:")
-        print(f"  MAE  = {mae:.4f}")
-        print(f"  RMSE = {rmse:.4f}")
-        print(f"  MAPE = {mape_val:.2f}%")
-        print(f"  sMAPE = {smape_val:.2f}%")
+        logger.info(f"\n{model_name.upper()} Prediction Metrics:")
+        logger.info(f"  MAE  = {mae:.4f}")
+        logger.info(f"  RMSE = {rmse:.4f}")
+        logger.info(f"  MAPE = {mape_val:.2f}%")
+        logger.info(f"  sMAPE = {smape_val:.2f}%")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

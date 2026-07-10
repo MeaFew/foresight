@@ -7,15 +7,11 @@ import json
 import sys
 from pathlib import Path
 
-repo_root = Path(__file__).parents[1].resolve()
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
-
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from config import FORECAST_PLOT_PNG, IMAGES_DIR, MODEL_RESULTS_JSON, RESIDUAL_PLOT_PNG
+from foresight.config import FORECAST_PLOT_PNG, IMAGES_DIR, MODEL_RESULTS_JSON, RESIDUAL_PLOT_PNG
 
 st.set_page_config(
     page_title="Time Series Forecasting",

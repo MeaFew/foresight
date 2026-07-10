@@ -9,10 +9,6 @@ import json
 import sys
 from pathlib import Path
 
-repo_root = Path(__file__).parents[1].resolve()
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
-
 import matplotlib
 
 matplotlib.use("Agg")
@@ -20,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from config import (
+from foresight.config import (
     FEATURES_TRAIN_CSV,
     FORECAST_PLOT_PNG,
     IMAGES_DIR,
@@ -29,6 +25,9 @@ from config import (
     RESIDUAL_PLOT_PNG,
     VAL_DAYS,
 )
+from foresight.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 # Ensure images/ exists
 IMAGES_DIR.mkdir(exist_ok=True)
@@ -37,7 +36,7 @@ IMAGES_DIR.mkdir(exist_ok=True)
 def load_results():
     """Load combined model results from JSON."""
     if not MODEL_RESULTS_JSON.exists():
-        print(f"[WARN] {MODEL_RESULTS_JSON} not found. Run train scripts first.")
+        logger.warning(f"[WARN] {MODEL_RESULTS_JSON} not found. Run train scripts first.")
         return {}
     with open(MODEL_RESULTS_JSON) as f:
         return json.load(f)
@@ -45,11 +44,11 @@ def load_results():
 
 def print_metrics_table(results):
     """Print a formatted comparison table."""
-    print("\n" + "=" * 70)
-    print("MODEL COMPARISON")
-    print("=" * 70)
-    print(f"{'Model':<20} {'MAE':>8} {'RMSE':>8} {'MAPE':>8} {'sMAPE':>8}")
-    print("-" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("MODEL COMPARISON")
+    logger.info("=" * 70)
+    logger.info(f"{'Model':<20} {'MAE':>8} {'RMSE':>8} {'MAPE':>8} {'sMAPE':>8}")
+    logger.info("-" * 70)
 
     all_metrics = []
     for key in ["baseline_results", "lstm_results", "transformer_results"]:
@@ -66,7 +65,7 @@ def print_metrics_table(results):
             # MAPE is already in percentage (0-100), format with f and append literal %
             mape_str = f"{mape:>7.2f}%" if mape is not None else "      --"
             smape_str = f"{smape:>7.2f}%" if smape is not None else "      --"
-            print(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
+            logger.info(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
             all_metrics.append(
                 {
                     "model": name,
@@ -77,8 +76,8 @@ def print_metrics_table(results):
                 }
             )
 
-    print("-" * 70)
-    print()
+    logger.info("-" * 70)
+    logger.info("")
     return all_metrics
 
 
@@ -93,7 +92,7 @@ def plot_metrics_bar(results):
             entries.append((name, entry))
 
     if not entries:
-        print("[SKIP] No results to plot.")
+        logger.info("[SKIP] No results to plot.")
         return
 
     names = [e[0] for e in entries]
@@ -138,7 +137,7 @@ def plot_metrics_bar(results):
     plt.tight_layout()
     plt.savefig(FORECAST_PLOT_PNG, dpi=150)
     plt.close()
-    print(f"[OK] Saved forecast comparison: {FORECAST_PLOT_PNG}")
+    logger.info(f"[OK] Saved forecast comparison: {FORECAST_PLOT_PNG}")
 
 
 def compute_residuals_on_the_fly():
@@ -151,19 +150,19 @@ def compute_residuals_on_the_fly():
 
     model_path = MODELS_DIR / "xgboost_baseline.joblib"
     if not model_path.exists():
-        print("[SKIP] XGBoost model not found. Cannot compute residuals.")
+        logger.info("[SKIP] XGBoost model not found. Cannot compute residuals.")
         return None
 
     feature_path = FEATURES_TRAIN_CSV
     if not feature_path.exists():
-        print("[SKIP] Feature file not found. Cannot compute residuals.")
+        logger.info("[SKIP] Feature file not found. Cannot compute residuals.")
         return None
 
-    print("Computing residuals from XGBoost model ...")
+    logger.info("Computing residuals from XGBoost model ...")
     df = pd.read_csv(feature_path, parse_dates=["date"])
 
     # Same split as baseline training (VAL_DAYS from config, via shared helper).
-    from metrics_utils import time_train_val_split
+    from foresight.metrics_utils import time_train_val_split
 
     _train_df, val_df = time_train_val_split(df, VAL_DAYS)
 
@@ -182,7 +181,7 @@ def compute_residuals_on_the_fly():
 
     # Print quick summary
     mae_val = mean_absolute_error(y_true, y_pred)
-    print(f"  XGBoost validation: MAE={mae_val:.4f}, N={len(residuals):,}")
+    logger.info(f"  XGBoost validation: MAE={mae_val:.4f}, N={len(residuals):,}")
 
     return ("XGBoost", y_true, y_pred, residuals)
 
@@ -208,7 +207,7 @@ def plot_residuals(results):
     if best_metrics is None or "residuals" not in best_metrics:
         computed = compute_residuals_on_the_fly()
         if computed is None:
-            print("[SKIP] No residual data available for plotting.")
+            logger.info("[SKIP] No residual data available for plotting.")
             return
         model_name, y_true, y_pred, residuals = computed
         best_metrics = {
@@ -247,20 +246,21 @@ def plot_residuals(results):
     plt.tight_layout()
     plt.savefig(RESIDUAL_PLOT_PNG, dpi=150)
     plt.close()
-    print(f"[OK] Saved residual plot: {RESIDUAL_PLOT_PNG}")
+    logger.info(f"[OK] Saved residual plot: {RESIDUAL_PLOT_PNG}")
 
 
 def main():
     results = load_results()
     if not results:
-        print("[SKIP] No model results found. Skipping evaluation.")
+        logger.info("[SKIP] No model results found. Skipping evaluation.")
         return
 
     print_metrics_table(results)
     plot_metrics_bar(results)
     plot_residuals(results)
-    print("\nEvaluation complete.")
+    logger.info("\nEvaluation complete.")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

@@ -8,28 +8,30 @@ all: preprocess features train-all evaluate
 # ── Environment ───────────────────────────────────────────────────
 setup:
 	pip install -r requirements.txt
+	pip install -e ".[dev]"
+	pre-commit install
 
 # ── Data pipeline ─────────────────────────────────────────────────
 preprocess:
-	$(PYTHON) scripts/preprocess.py
+	$(PYTHON) -m foresight.preprocess
 
 features:
-	$(PYTHON) scripts/feature_engineering.py
+	$(PYTHON) -m foresight.feature_engineering
 
 # ── Modeling ──────────────────────────────────────────────────────
 train-baseline:
-	$(PYTHON) scripts/train_baseline.py
+	$(PYTHON) -m foresight.train_baseline
 
 train-lstm:
-	$(PYTHON) scripts/train_lstm.py
+	$(PYTHON) -m foresight.train_lstm
 
 train-transformer:
-	$(PYTHON) scripts/train_transformer.py
+	$(PYTHON) -m foresight.train_transformer
 
 train-all: train-baseline train-lstm train-transformer
 
 evaluate:
-	$(PYTHON) scripts/evaluate.py
+	$(PYTHON) -m foresight.evaluate
 
 # ── Dashboard ─────────────────────────────────────────────────────
 dashboard:
@@ -37,26 +39,27 @@ dashboard:
 
 # ── Quality gates ─────────────────────────────────────────────────
 lint:
-	ruff check scripts/ tests/ dashboard/
+	ruff check src/ tests/ dashboard/
 
 format:
-	ruff format scripts/ tests/ dashboard/
+	ruff format src/ tests/ dashboard/
 
 format-check:
-	ruff format --check scripts/ tests/ dashboard/
+	ruff format --check src/ tests/ dashboard/
 
 test:
-	pytest tests/ -v --tb=short
+	pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=25
+
+typecheck:
+	mypy src/foresight
 
 audit:
-	python scripts/audit_consistency.py
+	$(PYTHON) -m foresight.audit_consistency
 
-verify: lint format-check test audit
+verify: lint format-check typecheck test audit
 	@echo "All quality gates passed"
 
 # ── Utilities ─────────────────────────────────────────────────────
-# Note: data/processed/ can accumulate >1.4GB of generated CSVs.
-# Run `make clean` to free disk space.
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true

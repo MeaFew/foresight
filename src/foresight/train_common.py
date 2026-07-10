@@ -35,10 +35,18 @@ if torch.cuda.is_available():
     # for the LSTM's recurrent kernels in particular.
     torch.backends.cudnn.benchmark = True
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from metrics_utils import compute_metrics, time_train_val_split
+from foresight.config import (
+    BATCH_SIZE,
+    MAX_EPOCHS,
+    MODEL_RESULTS_JSON,
+    PATIENCE,
+    REPORTS_DIR,
+    VAL_DAYS,
+)
+from foresight.logging_setup import get_logger
+from foresight.metrics_utils import compute_metrics, time_train_val_split
 
-from config import BATCH_SIZE, MAX_EPOCHS, MODEL_RESULTS_JSON, PATIENCE, REPORTS_DIR, VAL_DAYS
+logger = get_logger(__name__)
 
 
 class BaseForecastModule(pl.LightningModule):
@@ -89,7 +97,7 @@ def load_and_split(input_path: Path):
     rows are window input only, never prediction targets — see
     ``TimeSeriesDataset(min_target_date=...)``).
     """
-    from config import SEQ_LENGTH
+    from foresight.config import SEQ_LENGTH
 
     df = pd.read_csv(input_path, parse_dates=["date"])
     train_df, val_df = time_train_val_split(df, VAL_DAYS)
@@ -98,8 +106,8 @@ def load_and_split(input_path: Path):
     context_start = val_target_start - pd.Timedelta(days=SEQ_LENGTH)
     val_context = train_df[train_df["date"] >= context_start]
     val_df = pd.concat([val_context, val_df], ignore_index=True)
-    print(f"Train: {len(train_df):,} | Val: {len(val_df):,} (incl. {SEQ_LENGTH}-day context)")
-    print(f"Val target window starts at {val_target_start.date()} (context-only before then)")
+    logger.info(f"Train: {len(train_df):,} | Val: {len(val_df):,} (incl. {SEQ_LENGTH}-day context)")
+    logger.info(f"Val target window starts at {val_target_start.date()} (context-only before then)")
     return train_df, val_df, val_target_start
 
 
@@ -194,7 +202,7 @@ def train_and_evaluate(
         enable_progress_bar=sys.platform != "win32",
     )
 
-    print(f"\nTraining {name} ...")
+    logger.info(f"\nTraining {name} ...")
     # If --resume was passed, continue from the most recent checkpoint in the
     # checkpoint dir (glob match on the filename prefix). This restores the
     # model weights, optimizer state, epoch counter, and LR-scheduler state.
@@ -208,9 +216,9 @@ def train_and_evaluate(
         )
         if ckpts:
             ckpt_path = str(ckpts[-1])
-            print(f"Resuming from {ckpt_path}")
+            logger.info(f"Resuming from {ckpt_path}")
         else:
-            print("No checkpoint found to resume from; starting fresh.")
+            logger.info("No checkpoint found to resume from; starting fresh.")
     trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
     # Restore the best checkpoint (lowest val_loss) selected by ModelCheckpoint,
@@ -222,7 +230,7 @@ def train_and_evaluate(
         model.load_state_dict(best["state_dict"] if "state_dict" in best else best)
 
     # Evaluate on the validation split.
-    print(f"\nEvaluating {name} on validation set ...")
+    logger.info(f"\nEvaluating {name} on validation set ...")
     model.eval()
     all_preds, all_true = [], []
     device = next(model.parameters()).device
@@ -235,7 +243,7 @@ def train_and_evaluate(
             all_true.extend(batch["y"].cpu().numpy())
 
     metrics = compute_metrics(np.array(all_true), np.array(all_preds), name.lower())
-    print(
+    logger.info(
         f"  {name:<11s} MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
         f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
     )
@@ -261,7 +269,7 @@ def train_and_evaluate(
     with open(MODEL_RESULTS_JSON, "w") as f:
         json.dump(all_results, f, indent=2)
 
-    print(f"\nModel saved: {state_dict_path}")
+    logger.info(f"\nModel saved: {state_dict_path}")
     return metrics
 
 

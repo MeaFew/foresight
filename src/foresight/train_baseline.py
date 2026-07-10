@@ -16,8 +16,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from xgboost import XGBRegressor
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import (
+from foresight.config import (
     FEATURES_TRAIN_CSV,
     MODEL_RESULTS_JSON,
     MODELS_DIR,
@@ -26,7 +25,10 @@ from config import (
     VAL_DAYS,
     XGBOOST_MODEL_PATH,
 )
-from scripts.metrics import mape, smape
+from foresight.logging_setup import get_logger, setup_logging
+from foresight.metrics import mape, smape
+
+logger = get_logger(__name__)
 
 
 def split_train_val(df: pd.DataFrame, val_days: int = VAL_DAYS) -> tuple:
@@ -64,7 +66,7 @@ def evaluate(y_true, y_pred, name: str) -> dict:
         "mape": float(mape(y_true, y_pred)),
         "smape": float(smape(y_true, y_pred)),
     }
-    print(
+    logger.info(
         f"  {name:20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
         f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
     )
@@ -73,7 +75,7 @@ def evaluate(y_true, y_pred, name: str) -> dict:
 
 def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
     """Train XGBoost baseline."""
-    print("\nTraining XGBoost ...")
+    logger.info("\nTraining XGBoost ...")
 
     X_train, y_train, feature_cols = prepare_xy(train_df)
     X_val, y_val, _ = prepare_xy(val_df)
@@ -110,11 +112,11 @@ def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 
 def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
     """Train Prophet baseline on aggregated data."""
-    print("\nTraining Prophet (aggregated) ...")
+    logger.info("\nTraining Prophet (aggregated) ...")
 
     # Prophet requires cmdstan build tools - unavailable on Windows.
     if sys.platform == "win32":
-        print("  Prophet unavailable (sys.platform=win32) - skipping")
+        logger.info("  Prophet unavailable (sys.platform=win32) - skipping")
         return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 
     try:
@@ -142,7 +144,7 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
 
         return model, metrics
     except (ImportError, AttributeError, RuntimeError) as e:
-        print(f"  Prophet unavailable ({type(e).__name__}) - skipping")
+        logger.info(f"  Prophet unavailable ({type(e).__name__}) - skipping")
         return None, {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
 
 
@@ -153,14 +155,16 @@ def main():
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"Loading features from {args.input} ...")
+    logger.info(f"Loading features from {args.input} ...")
     df = pd.read_csv(args.input, parse_dates=["date"])
 
     train, val = split_train_val(df)
-    print(
+    logger.info(
         f"Train: {len(train):,} rows ({train['date'].min().date()} ~ {train['date'].max().date()})"
     )
-    print(f"Val:   {len(val):,} rows ({val['date'].min().date()} ~ {val['date'].max().date()})")
+    logger.info(
+        f"Val:   {len(val):,} rows ({val['date'].min().date()} ~ {val['date'].max().date()})"
+    )
 
     results = []
 
@@ -173,8 +177,9 @@ def main():
     # Save results
     with open(MODEL_RESULTS_JSON, "w") as f:
         json.dump({"baseline_results": results}, f, indent=2)
-    print(f"\nResults saved: {MODEL_RESULTS_JSON}")
+    logger.info(f"\nResults saved: {MODEL_RESULTS_JSON}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()
