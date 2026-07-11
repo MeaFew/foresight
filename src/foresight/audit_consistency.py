@@ -18,17 +18,22 @@ logger = get_logger(__name__)
 
 
 def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
-    """Extract the first number in the markdown table row for ``metric_name``.
+    """Extract the first metric value from a Markdown table row.
 
-    Looks for a line starting with ``| <metric_name> |`` and returns the first
-    decimal number found on that row. This avoids matching unrelated numbers
-    that appear earlier in the README text.
+    Markdown emphasis around the model name or value is ignored, so rows such
+    as ``| **XGBoost** | **0.257** |`` are handled as expected.
     """
     text = readme_path.read_text(encoding="utf-8")
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped.startswith(f"| {metric_name}"):
-            match = re.search(r"(\d+\.\d+)", stripped)
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        label = re.sub(r"[*_`]", "", cells[0]).strip()
+        if label == metric_name:
+            match = re.search(r"(\d+\.\d+)", cells[1])
             if match:
                 return float(match.group(1))
     return None
