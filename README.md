@@ -29,9 +29,9 @@
 
 | 模型 | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE | 数据集 |
 |------|-------|--------|--------|-------|--------|
-| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% | 全量（230 万行训练 + 尾部 16 天验证） |
-| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 全量（同上，GPU 训练） |
-| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 全量（同上，GPU 训练） |
+| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% | 完整预处理训练集 + 尾部 16 天验证 |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 同一时间验证窗（GPU 训练） |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 同一时间验证窗（GPU 训练） |
 | Prophet | — | — | — | — | *需 pystan 编译工具链，已在 Docker/Linux CI 验证通过* |
 
 > LSTM 与 Transformer 均已按**三处泄漏修复**重跑，修复逻辑通过 `tests/test_pipeline.py::TestLeakagePrevention` 验证。指标以 `reports/model_results.json` 为准。
@@ -107,6 +107,16 @@ git clone https://github.com/MeaFew/foresight.git
 
 cd foresight
 
+# 创建并激活 Python 3.11 虚拟环境
+python -m venv .venv
+# Linux / macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+
+# 安装依赖、项目包和开发工具
+make setup
+# Windows 无 GNU Make：python -m pip install -r requirements.txt
+#                    python -m pip install -e ".[dev]"
+
 # 下载真实数据集（GitHub Releases，约 21MB）
 bash download_data.sh
 
@@ -132,7 +142,7 @@ make verify
 
 ```
 .
-├── scripts/
+├── src/foresight/
 │   ├── generate_mock_data.py     # 合成零售销售数据
 │   ├── preprocess.py              # 日期解析、对数变换、外部数据合并
 │   ├── feature_engineering.py     # 滞后特征、滚动统计、季节编码
@@ -149,24 +159,13 @@ make verify
 ├── tests/
 │   ├── test_pipeline.py           # 单元 + 集成测试
 │   └── test_metrics.py            # mape/smape 数值契约 + TimeSeriesDataset 一致性测试
-├── config.py                      # 集中式路径与超参数配置
 ├── Makefile                       # 工作流编排
 └── requirements.txt
 ```
 
-## 基准参照
+## 评估口径
 
-基于 [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting)（评估指标：RMSLE，越低越好）。
-
-| 参照 | RMSLE | 说明 |
-|------|-------|------|
-| Kaggle 入门基线（朴素法） | ~0.90–1.20 | 历史均值 / 朴素预测 |
-| 竞赛中位数 | ~0.60–0.80 | 基础滞后特征 + XGBoost |
-| 竞赛 Top 10% | ~0.45–0.50 | 复杂特征工程 |
-| 竞赛 Top 1% | ~0.35–0.40 | 细粒度外部数据利用 |
-| **本方案（XGBoost CV）** | **~0.24** | 对数变换后 5 折交叉验证 |
-
-> 注：对数变换前后的 RMSLE 不可直接对比。Kaggle 使用原始尺度 RMSLE，本地验证使用对数尺度的 MAE/MAPE 以保证训练稳定性。
+Kaggle 竞赛使用原始销量尺度上的 RMSLE；本项目当前产物报告 log1p(sales) 空间的 MAE、RMSE、MAPE 与 sMAPE，两者**不能直接横向比较**。因此 README 只展示由 `reports/model_results.json` 支撑、且在同一时间验证窗上得到的本地模型结果，不再展示缺少产物依据的 RMSLE 或排行榜预估值。
 
 <details>
 <summary><b>📊 详细实验说明（训练速度、改进方向）</b></summary>
@@ -184,7 +183,7 @@ make verify
 | `bf16-mixed` precision | Ada Tensor Core 加速 |
 | `batch_size=1024` | 降低 kernel-launch 开销（bs=128 时 72s/epoch → bs=1024 时 38s/epoch） |
 
-> 可通过 CLI 微调：`python scripts/train_lstm.py --num_workers 8 --batch_size 2048`。若长训练被中断，`--resume` 会从 `reports/checkpoints/` 的最新 checkpoint 续训。
+> 可通过 CLI 微调：`python -m foresight.train_lstm --num_workers 8 --batch_size 2048`。若长训练被中断，`--resume` 会从 `reports/checkpoints/` 的最新 checkpoint 续训。
 
 ### DL 未胜出的原因与改进方向
 
@@ -195,12 +194,12 @@ LSTM 接近 XGBoost（MAE 差 0.012），Transformer 稍逊。改进方向：DL 
 ## 数据说明
 
 使用 Kaggle Store Sales 数据集：
-- 厄瓜多尔约 1,200 家门店
+- 厄瓜多尔 54 家门店
 - 33 个产品品类
 - 2013–2017 年每日销售数据
 - 外部变量：油价、节假日、促销信息
 
-无需 Kaggle 账号即可本地测试：运行 `python scripts/generate_mock_data.py` 自动生成统计特征相似的合成数据集。
+无需 Kaggle 账号即可本地测试：运行 `python -m foresight.generate_mock_data` 自动生成统计特征相似的合成数据集。
 
 ## 相关项目
 

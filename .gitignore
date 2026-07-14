@@ -79,6 +79,8 @@ images/*.jpg
 !models/.gitkeep
 !reports/.gitkeep
 !images/.gitkeep
+!reports/model_results.json
+!images/forecast_comparison.png
 
 # Logs
 *.log

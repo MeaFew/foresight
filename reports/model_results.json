@@ -1,0 +1,36 @@
+{
+  "baseline_results": [
+    {
+      "model": "xgboost",
+      "mae": 0.2566275329466874,
+      "rmse": 0.38093699946959125,
+      "mape": 12.022584738837333,
+      "smape": 39.472266121231904
+    },
+    {
+      "model": "prophet",
+      "mae": null,
+      "rmse": null,
+      "mape": null,
+      "smape": null
+    }
+  ],
+  "lstm_results": [
+    {
+      "model": "lstm",
+      "mae": 0.2692425426267669,
+      "rmse": 0.39937468653880404,
+      "mape": 12.713407170882164,
+      "smape": 40.659912765350846
+    }
+  ],
+  "transformer_results": [
+    {
+      "model": "transformer",
+      "mae": 0.28243143256757863,
+      "rmse": 0.40956361872564745,
+      "mape": 12.755061226701308,
+      "smape": 40.606271404159585
+    }
+  ]
+}

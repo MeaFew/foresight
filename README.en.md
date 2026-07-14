@@ -17,6 +17,22 @@
 
 ---
 
+## Headline
+
+> **XGBoost wins: MAE = 0.257 and RMSE = 0.381 in log1p space.** The useful negative result is that LSTM and Transformer do not beat the gradient-boosted baseline on this structured forecasting task after leakage fixes.
+
+| Model | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE |
+|-------|------:|-------:|-------:|------:|
+| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% |
+
+<p align="center">
+  <img src="images/forecast_comparison.png" alt="XGBoost, LSTM, and Transformer forecast comparison">
+</p>
+
+The rerun fixes three leakage paths: oil lags are computed on the date-unique series, missing oil values use causal filling, and deep-learning validation targets are restricted to the holdout window. The contract is covered by `tests/test_pipeline.py::TestLeakagePrevention`; metrics come from `reports/model_results.json`.
+
 ## Overview
 
 End-to-end deep learning pipeline for multivariate time series forecasting. Benchmarks classical methods (XGBoost, Prophet) against modern neural architectures (LSTM, Transformer) on the Kaggle Store Sales dataset.
@@ -69,6 +85,16 @@ Dashboard ──> Forecast comparison, error distribution, residual analysis
 git clone https://github.com/MeaFew/foresight.git
 cd foresight
 
+# Create and activate a Python 3.11 virtual environment
+python -m venv .venv
+# Linux / macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+
+# Install dependencies, the package, and development tools
+make setup
+# Windows without GNU Make: python -m pip install -r requirements.txt
+#                           python -m pip install -e ".[dev]"
+
 # Download real dataset (GitHub Releases, ~21MB)
 bash download_data.sh
 
@@ -94,7 +120,7 @@ make verify
 
 ```
 .
-├── scripts/
+├── src/foresight/
 │   ├── generate_mock_data.py     # Synthetic retail sales data
 │   ├── preprocess.py              # Date parsing, log-transform, external merges
 │   ├── feature_engineering.py     # Lags, rolling stats, seasonal encoding
@@ -111,35 +137,24 @@ make verify
 ├── tests/
 │   ├── test_pipeline.py           # Unit + integration tests
 │   └── test_metrics.py            # mape/smape numerical contract + TimeSeriesDataset consistency
-├── config.py                      # Centralized paths & hyperparameters
 ├── Makefile                       # Workflow orchestration
 └── requirements.txt
 ```
 
 ## Model Comparison
 
-### Benchmark
+### Evaluation protocol
 
-Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting) (metric: RMSLE, lower is better).
-
-| Reference | RMSLE | Notes |
-|-----------|-------|-------|
-| Kaggle Starter (naive) | ~0.90-1.20 | Historical mean / naive forecast |
-| Competition Median | ~0.60-0.80 | Basic lag features + XGBoost |
-| Competition Top 10% | ~0.45-0.50 | Complex feature engineering |
-| Competition Top 1% | ~0.35-0.40 | Fine-grained external data usage |
-| **This Project (XGBoost CV)** | **~0.24** | Local 5-fold CV on log-transformed sales |
-
-> Note: RMSLE values are not directly comparable across log-transformed vs. original scale. The Kaggle competition uses original-scale RMSLE. Local validation uses log-scale MAE/MAPE for training stability.
+Kaggle scores original-scale sales with RMSLE, while this repository currently reports MAE, RMSE, MAPE, and sMAPE in log1p(sales) space. These protocols are not directly comparable, so this README shows only local results backed by `reports/model_results.json` on the shared chronological holdout; unsupported RMSLE and leaderboard estimates have been removed.
 
 ### Results
 
 | Model | MAE | RMSE | MAPE | sMAPE* | Dataset |
 |-------|-----|------|------|--------|---------|
-| XGBoost | **0.256** | **0.380** | **11.98%** | 39.42% | Full (3M rows, 54 stores) |
+| XGBoost | **0.257** | **0.381** | **12.02%** | 39.47% | Full processed training set, final 16-day holdout |
 | Prophet (aggregated) | — | — | — | — | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
-| LSTM | **0.269** | **0.399** | **12.71%** | 40.66% | Full (3M rows, 54 stores) |
-| Transformer | **0.282** | **0.410** | **12.76%** | 40.61% | Full (3M rows, 54 stores) |
+| LSTM | **0.269** | **0.399** | **12.71%** | 40.66% | Same chronological holdout |
+| Transformer | **0.282** | **0.410** | **12.76%** | 40.61% | Same chronological holdout |
 
 > **LSTM/Transformer metrics** are actual full-dataset results produced by PyTorch Lightning training on the same validation window as XGBoost. Run `make train-lstm` and `make train-transformer` to regenerate them; metrics are written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. Latest values are reconciled with `reports/model_results.json` and `README.md`.
 
@@ -148,12 +163,12 @@ Based on [Kaggle Store Sales - Time Series Forecasting](https://www.kaggle.com/c
 ## Data
 
 The project uses the **Kaggle Store Sales - Time Series Forecasting** dataset:
-- ~1,200 stores across Ecuador
+- 54 stores across Ecuador
 - 33 product families
 - Daily sales from 2013 to 2017
 - External variables: oil prices, holidays, promotions
 
-For local testing without Kaggle credentials, run `python scripts/generate_mock_data.py` to create a statistically similar synthetic dataset.
+For local testing without Kaggle credentials, run `python -m foresight.generate_mock_data` to create a statistically similar synthetic dataset.
 
 ## Related Projects
 
