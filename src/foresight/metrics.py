@@ -4,7 +4,7 @@ Provides:
 - TimeSeriesDataset: PyTorch sliding-window dataset (shared by LSTM & Transformer)
 - mape/smape: evaluation metrics (shared by baseline, LSTM, Transformer)
 
-``mape``/``smape`` are pure-numpy and live in ``scripts.metrics_utils``; they
+``mape``/``smape`` are pure-numpy and live in ``foresight.metrics_utils``; they
 are re-exported here so existing ``from foresight.metrics import mape, smape``
 imports keep working. Importing the torch-free helpers directly from
 ``metrics_utils`` avoids pulling in the PyTorch stack (useful in tests).

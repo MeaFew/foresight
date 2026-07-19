@@ -5,7 +5,7 @@ tests focus on the numerical contract of the shared metrics (mape/smape) and
 the TimeSeriesDataset encoder/scaler consistency — paths that previously had
 no direct coverage.
 
-mape/smape live in scripts/metrics_utils.py (torch-free) so their numerical
+mape/smape live in src/foresight/metrics_utils.py (torch-free) so their numerical
 contract can be tested without the deep-learning stack installed. The
 TimeSeriesDataset tests still skip when torch is missing, mirroring
 test_pipeline.py's importorskip strategy.

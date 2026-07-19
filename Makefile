@@ -48,7 +48,7 @@ format-check:
 	ruff format --check src/ tests/ dashboard/
 
 test:
-	pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=25
+	pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=40
 
 typecheck:
 	mypy src/foresight
@@ -61,9 +61,7 @@ verify: lint format-check typecheck test audit
 
 # ── Utilities ─────────────────────────────────────────────────────
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "lightning_logs" -exec rm -rf {} + 2>/dev/null || true
-	rm -f data/processed/*.csv 2>/dev/null || true
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]"
+	$(PYTHON) -c "import pathlib; [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]"
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in [pathlib.Path('.pytest_cache'), pathlib.Path('.ruff_cache'), pathlib.Path('lightning_logs')]]"
+	$(PYTHON) -c "import pathlib; [p.unlink() for p in pathlib.Path('data/processed').glob('*.csv')]"

@@ -148,6 +148,8 @@ def compute_residuals_on_the_fly():
     import joblib
     from sklearn.metrics import mean_absolute_error
 
+    from foresight.metrics_utils import prepare_xy
+
     model_path = MODELS_DIR / "xgboost_baseline.joblib"
     if not model_path.exists():
         logger.info("[SKIP] XGBoost model not found. Cannot compute residuals.")
@@ -166,13 +168,8 @@ def compute_residuals_on_the_fly():
 
     _train_df, val_df = time_train_val_split(df, VAL_DAYS)
 
-    # Prepare features
-    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
-    numeric_cols = val_df.select_dtypes(include=[np.number]).columns.tolist()
-    feature_cols = [c for c in numeric_cols if c not in exclude]
-
-    X_val = val_df[feature_cols].fillna(0).values
-    y_true = val_df["sales_log"].values
+    # Prepare features using the shared helper (consistent column exclusion).
+    X_val, y_true, _ = prepare_xy(val_df)
 
     # Load and predict
     model = joblib.load(model_path)

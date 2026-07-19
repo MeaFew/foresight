@@ -4,7 +4,7 @@ This module is intentionally torch-free so it can be imported in lightweight
 contexts (unit tests, CI matrices without the deep-learning stack) and reused
 by baseline models that don't need PyTorch.
 
-``scripts.metrics`` re-exports these for backwards compatibility — existing
+``foresight.metrics`` re-exports these for backwards compatibility — existing
 ``from foresight.metrics import mape, smape`` statements keep working.
 """
 
@@ -50,6 +50,26 @@ def time_train_val_split(df: pd.DataFrame, val_days: int):
     val_df = df[df["date"] >= val_start].copy()
     train_df = df[df["date"] < val_start].copy()
     return train_df, val_df
+
+
+# Columns excluded from the feature matrix (identifiers / targets / raw values).
+FEATURE_EXCLUDE_COLS = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
+
+
+def prepare_xy(df: pd.DataFrame, target_col: str = "sales_log") -> tuple:
+    """Prepare feature matrix and target vector for tabular models.
+
+    Shared by train_baseline.py, evaluate.py, and predict.py so the column
+    exclusion list and fillna strategy stay consistent across all call sites.
+
+    Returns ``(X, y, feature_cols)`` where *X* is a DataFrame (NaN-filled),
+    *y* is a 1-D numpy array, and *feature_cols* is the list of used columns.
+    """
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    feature_cols = [c for c in numeric_cols if c not in FEATURE_EXCLUDE_COLS]
+    X = df[feature_cols].fillna(0)
+    y = df[target_col].values
+    return X, y, feature_cols
 
 
 def compute_metrics(y_true, y_pred, name: str) -> dict:

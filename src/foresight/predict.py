@@ -13,7 +13,6 @@ import joblib
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from torch.utils.data import DataLoader
 
 from foresight.config import (
@@ -29,6 +28,7 @@ from foresight.config import (
 )
 from foresight.logging_setup import get_logger, setup_logging
 from foresight.metrics import TimeSeriesDataset, mape, smape
+from foresight.metrics_utils import prepare_xy
 from foresight.train_lstm import LSTMForecastModule
 from foresight.train_transformer import TransformerForecastModule
 
@@ -72,21 +72,21 @@ def load_xgboost_and_predict(df: pd.DataFrame):
     model = joblib.load(model_path)
     logger.info(f"Loaded XGBoost from {model_path}")
 
-    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    feature_cols = [c for c in numeric_cols if c not in exclude]
-
-    X = df[feature_cols].fillna(0)
+    X, _, _ = prepare_xy(df)
     y_pred = model.predict(X)
     return y_pred
 
 
-def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
-    """Load LSTM model and run inference."""
-    model_path = LSTM_MODEL_PATH
-    meta_path = LSTM_MODEL_PATH.with_suffix(".meta.joblib")
+def _load_dl_and_predict(model_path: Path, model_cls, df: pd.DataFrame, min_target_date=None):
+    """Shared DL inference: load checkpoint + meta, build dataset, run forward pass.
+
+    Used by both LSTM and Transformer paths — the only differences are the
+    checkpoint path and the module class, so the boilerplate (meta loading,
+    dataset construction, DataLoader, eval loop) lives here once.
+    """
+    meta_path = model_path.with_suffix(".meta.joblib")
     if not model_path.exists():
-        logger.info(f"[SKIP] LSTM model not found: {model_path}")
+        logger.info(f"[SKIP] Model not found: {model_path}")
         return None
 
     meta = joblib.load(meta_path)
@@ -98,7 +98,7 @@ def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
     )
     loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-    model = LSTMForecastModule(
+    model = model_cls(
         num_stores=len(meta["encoders"]["store_nbr"].classes_),
         num_families=len(meta["encoders"]["family"].classes_),
         num_numeric=len(meta["numeric_cols"]),
@@ -112,43 +112,20 @@ def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
             y_hat = model(batch["cat"], batch["num"])
             all_preds.extend(y_hat.cpu().numpy())
 
-    logger.info(f"Loaded LSTM from {model_path}")
+    logger.info(f"Loaded {model_cls.__name__} from {model_path}")
     return np.array(all_preds)
+
+
+def load_lstm_and_predict(df: pd.DataFrame, min_target_date=None):
+    """Load LSTM model and run inference."""
+    return _load_dl_and_predict(LSTM_MODEL_PATH, LSTMForecastModule, df, min_target_date)
 
 
 def load_transformer_and_predict(df: pd.DataFrame, min_target_date=None):
     """Load Transformer model and run inference."""
-    model_path = TRANSFORMER_MODEL_PATH
-    meta_path = TRANSFORMER_MODEL_PATH.with_suffix(".meta.joblib")
-    if not model_path.exists():
-        logger.info(f"[SKIP] Transformer model not found: {model_path}")
-        return None
-
-    meta = joblib.load(meta_path)
-    ds = TimeSeriesDataset(
-        df,
-        encoder=meta["encoders"],
-        scalers=meta["scalers"],
-        min_target_date=min_target_date,
+    return _load_dl_and_predict(
+        TRANSFORMER_MODEL_PATH, TransformerForecastModule, df, min_target_date
     )
-    loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-
-    model = TransformerForecastModule(
-        num_stores=len(meta["encoders"]["store_nbr"].classes_),
-        num_families=len(meta["encoders"]["family"].classes_),
-        num_numeric=len(meta["numeric_cols"]),
-    )
-    model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
-    model.eval()
-
-    all_preds = []
-    with torch.no_grad():
-        for batch in loader:
-            y_hat = model(batch["cat"], batch["num"])
-            all_preds.extend(y_hat.cpu().numpy())
-
-    logger.info(f"Loaded Transformer from {model_path}")
-    return np.array(all_preds)
 
 
 def predict_model(df: pd.DataFrame, model_name: str, min_target_date=None):
@@ -259,13 +236,13 @@ def main():
         min_len = min(len(y_true), len(y_pred_arr))
         y_true = y_true[:min_len]
         y_pred_arr = y_pred_arr[:min_len]
-        mae = float(mean_absolute_error(y_true, y_pred_arr))
-        rmse = float(np.sqrt(mean_squared_error(y_true, y_pred_arr)))
+        mae_val = float(np.mean(np.abs(y_true - y_pred_arr)))
+        rmse_val = float(np.sqrt(np.mean((y_true - y_pred_arr) ** 2)))
         mape_val = float(mape(y_true, y_pred_arr))
         smape_val = float(smape(y_true, y_pred_arr))
         logger.info(f"\n{model_name.upper()} Prediction Metrics:")
-        logger.info(f"  MAE  = {mae:.4f}")
-        logger.info(f"  RMSE = {rmse:.4f}")
+        logger.info(f"  MAE  = {mae_val:.4f}")
+        logger.info(f"  RMSE = {rmse_val:.4f}")
         logger.info(f"  MAPE = {mape_val:.2f}%")
         logger.info(f"  sMAPE = {smape_val:.2f}%")
 

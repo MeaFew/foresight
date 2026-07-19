@@ -47,7 +47,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
-fail_under = 25
+fail_under = 40
 
 [tool.mypy]
 python_version = "3.11"

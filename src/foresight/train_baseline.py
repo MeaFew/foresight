@@ -13,7 +13,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from xgboost import XGBRegressor
 
 from foresight.config import (
@@ -26,51 +25,9 @@ from foresight.config import (
     XGBOOST_MODEL_PATH,
 )
 from foresight.logging_setup import get_logger, setup_logging
-from foresight.metrics import mape, smape
+from foresight.metrics_utils import compute_metrics, prepare_xy, time_train_val_split
 
 logger = get_logger(__name__)
-
-
-def split_train_val(df: pd.DataFrame, val_days: int = VAL_DAYS) -> tuple:
-    """Split by time — last N days as validation.
-
-    Default ``val_days`` tracks ``config.VAL_DAYS`` so the baseline split cannot
-    drift from the value every other stage (DL training, evaluate) uses.
-    """
-    max_date = df["date"].max()
-    val_start = max_date - pd.Timedelta(days=val_days - 1)
-
-    train = df[df["date"] < val_start].copy()
-    val = df[df["date"] >= val_start].copy()
-
-    return train, val
-
-
-def prepare_xy(df: pd.DataFrame, target_col: str = "sales_log") -> tuple:
-    """Prepare feature matrix and target vector."""
-    exclude = ["date", "sales", "sales_log", "id", "store_nbr", "family"]
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    feature_cols = [c for c in numeric_cols if c not in exclude]
-
-    X = df[feature_cols].fillna(0)
-    y = df[target_col].values
-    return X, y, feature_cols
-
-
-def evaluate(y_true, y_pred, name: str) -> dict:
-    """Compute regression metrics."""
-    metrics = {
-        "model": name,
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mape": float(mape(y_true, y_pred)),
-        "smape": float(smape(y_true, y_pred)),
-    }
-    logger.info(
-        f"  {name:20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
-        f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
-    )
-    return metrics
 
 
 def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
@@ -98,7 +55,11 @@ def train_xgboost(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
     )
 
     y_pred = model.predict(X_val)
-    metrics = evaluate(y_val, y_pred, "xgboost")
+    metrics = compute_metrics(y_val, y_pred, "xgboost")
+    logger.info(
+        f"  {'xgboost':20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
+        f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
+    )
 
     # Save
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -136,7 +97,11 @@ def train_prophet(train_df: pd.DataFrame, val_df: pd.DataFrame) -> tuple:
         forecast = model.predict(future)
         val_pred = forecast.iloc[-len(agg_val) :]["yhat"].values
 
-        metrics = evaluate(agg_val["y"].values, val_pred, "prophet")
+        metrics = compute_metrics(agg_val["y"].values, val_pred, "prophet")
+        logger.info(
+            f"  {'prophet':20s}  MAE={metrics['mae']:.4f}  RMSE={metrics['rmse']:.4f}  "
+            f"MAPE={metrics['mape']:.2f}%  sMAPE={metrics['smape']:.2f}%"
+        )
 
         # Save
         joblib.dump(model, MODELS_DIR / "prophet_baseline.joblib")
@@ -158,7 +123,7 @@ def main():
     logger.info(f"Loading features from {args.input} ...")
     df = pd.read_csv(args.input, parse_dates=["date"])
 
-    train, val = split_train_val(df)
+    train, val = time_train_val_split(df, VAL_DAYS)
     logger.info(
         f"Train: {len(train):,} rows ({train['date'].min().date()} ~ {train['date'].max().date()})"
     )

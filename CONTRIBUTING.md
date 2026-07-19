@@ -56,7 +56,7 @@ make dashboard
 
 ```bash
 # Python lint
-ruff check scripts/ dashboard/ --ignore E501,F401,E402
+ruff check src/ tests/ dashboard/
 
 # 单元测试
 pytest tests/ -v
@@ -73,6 +73,6 @@ pytest tests/ -v
 
 ## 扩展建议
 
-- 新增模型: 放在 `scripts/` 并按 `train_{model}.py` 命名
-- 新增特征: 在 `scripts/feature_engineering.py` 中扩展
-- 新增评估指标: 在 `scripts/metrics.py` 中添加
+- 新增模型: 放在 `src/foresight/` 并按 `train_{model}.py` 命名
+- 新增特征: 在 `src/foresight/feature_engineering.py` 中扩展
+- 新增评估指标: 在 `src/foresight/metrics_utils.py` 中添加
