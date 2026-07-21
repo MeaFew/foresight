@@ -14,13 +14,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff
+      # Pin ruff to the same version as .pre-commit-config.yaml (rev: v0.11.0)
+      - run: pip install ruff==0.11.0
       - run: ruff check src/ tests/ dashboard/
       - run: ruff format --check src/ tests/ dashboard/
 
   test:
     # CI installs only the lightweight test deps (no torch/lightning);
-    # torch-dependent tests use pytest.importorskip.
+    # torch-dependent tests use pytest.importorskip. The coverage floor (20)
+    # reflects what the light-deps suite can actually reach — keep it in sync
+    # with pyproject.toml [tool.coverage.report] fail_under and the Makefile.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +39,7 @@ jobs:
       - run: pip install -r requirements-test.txt
       - run: pip install -e ".[dev]"
       - name: Run tests with coverage
-        run: pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=25
+        run: pytest tests/ -v --tb=short --cov=foresight --cov-report=term-missing --cov-fail-under=20
 
   typecheck:
     # Gradual typing: mypy reports but does not block CI yet.

@@ -9,7 +9,7 @@
 git clone https://github.com/MeaFew/foresight.git
 cd foresight
 
-# 2. 创建虚拟环境 (推荐 Python 3.12)
+# 2. 创建虚拟环境 (推荐 Python 3.11, 与 README 徽章 / requirements-cpu.lock 编译目标一致)
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 

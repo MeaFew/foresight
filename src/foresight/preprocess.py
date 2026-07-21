@@ -93,10 +93,14 @@ def merge_external(
         # yet — safe, since the first known value is the earliest observation).
         oil["dcoilwtico"] = oil["dcoilwtico"].ffill().bfill()
         df = df.merge(oil[["date", "dcoilwtico"]], on="date", how="left")
-        # Rows whose date precedes the first oil observation stay NaN after the
-        # merge; ffill/bfill on the merged frame again uses only the nearest
-        # available price without crossing the time boundary improperly.
-        df["dcoilwtico"] = df["dcoilwtico"].ffill().bfill()
+        # Dates outside the oil coverage stay NaN after the merge. Fill them on
+        # the DAILY series (one value per date), not on the long frame: the
+        # frame is ordered by (store_nbr, family, date), so a row-level
+        # ffill/bfill would carry prices across group boundaries — a non-first
+        # group's leading NaNs would be filled with the PREVIOUS group's last
+        # row, which is a LATER date's price (future leak).
+        daily_oil = df.groupby("date")["dcoilwtico"].first().sort_index().ffill().bfill()
+        df["dcoilwtico"] = df["date"].map(daily_oil)
 
     if holidays is not None:
         holidays = holidays.copy()

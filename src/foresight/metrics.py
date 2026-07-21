@@ -43,6 +43,7 @@ class TimeSeriesDataset(Dataset):
         seq_length: int = SEQ_LENGTH,
         encoder: dict | None = None,
         scalers: dict | None = None,
+        numeric_cols: list | None = None,
         min_target_date: pd.Timestamp | None = None,
     ):
         self.seq_length = seq_length
@@ -64,12 +65,17 @@ class TimeSeriesDataset(Dataset):
         # so float32 / Int32 / nullable dtypes are not silently dropped — this
         # keeps the DL feature set consistent with the XGBoost path, which uses
         # select_dtypes(include=[np.number]).
-        _exclude = {"date", "sales", "sales_log", "id", "store_nbr", "family"}
-        numeric_cols = [
-            c
-            for c in self.df.columns
-            if c not in _exclude and pd.api.types.is_numeric_dtype(self.df[c])
-        ]
+        # At inference the caller passes the training-time numeric_cols (saved
+        # in the model meta) so the num-tensor column order is pinned to what
+        # the model was trained with — recomputing it from the inference frame
+        # would silently misalign features if its column order differs.
+        if numeric_cols is None:
+            _exclude = {"date", "sales", "sales_log", "id", "store_nbr", "family"}
+            numeric_cols = [
+                c
+                for c in self.df.columns
+                if c not in _exclude and pd.api.types.is_numeric_dtype(self.df[c])
+            ]
         self.numeric_cols = numeric_cols
         self.scalers = scalers or {}
         for col in numeric_cols:

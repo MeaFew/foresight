@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 LABEL org.opencontainers.image.title="Multivariate Time Series Forecasting"
 LABEL org.opencontainers.image.description="LSTM + Transformer + XGBoost pipeline for Store Sales forecasting"
@@ -9,8 +9,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Pinned CPU lock (compiled for Python 3.11); the torch==2.5.1+cpu wheel only
+# exists on the PyTorch index.
+COPY requirements-cpu.lock .
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements-cpu.lock
+
+# Install the foresight package itself. The project uses a src layout, so the
+# repo checkout alone is NOT importable — without this, `streamlit run
+# dashboard/app.py` fails with ModuleNotFoundError: foresight.
+COPY pyproject.toml .
+COPY src/ src/
+RUN pip install --no-cache-dir .
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

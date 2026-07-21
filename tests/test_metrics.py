@@ -172,3 +172,23 @@ class TestTimeSeriesDataset:
         short = TimeSeriesDataset(small_ts_df, seq_length=5)
         long = TimeSeriesDataset(small_ts_df, seq_length=20)
         assert len(long) < len(short)
+
+    def test_numeric_cols_parameter_pins_feature_order(self, small_ts_df):
+        """predict.py passes the training-time numeric_cols from the saved meta.
+        The num tensor's column order must follow that list, NOT the inference
+        frame's column order — otherwise a shuffled CSV column order would
+        silently feed the wrong features into the model."""
+        from foresight.metrics import TimeSeriesDataset
+
+        cols = ["month", "onpromotion", "dayofweek"]
+        ds_a = TimeSeriesDataset(small_ts_df, seq_length=7, numeric_cols=cols)
+        shuffled = small_ts_df[list(reversed(small_ts_df.columns))]
+        ds_b = TimeSeriesDataset(shuffled, seq_length=7, numeric_cols=cols)
+
+        assert ds_a.numeric_cols == cols
+        assert ds_b.numeric_cols == cols
+        # Same data + pinned order => identical num arrays regardless of the
+        # input frame's column order.
+        assert len(ds_a.groups_num) == len(ds_b.groups_num)
+        for ga, gb in zip(ds_a.groups_num, ds_b.groups_num):
+            np.testing.assert_array_equal(ga, gb)

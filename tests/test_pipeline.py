@@ -110,25 +110,6 @@ class TestDataset:
         assert sample["y"].shape == torch.Size([])
 
 
-class TestMetrics:
-    def test_mape_zero_handling(self):
-        y_true = np.array([0, 1, 2])
-        y_pred = np.array([0.1, 1.1, 1.9])
-        mask = y_true != 0
-        result = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-        assert result >= 0
-        assert not np.isnan(result)
-
-    def test_smape_symmetry(self):
-        y_true = np.array([1, 2, 3])
-        y_pred = np.array([1.1, 1.9, 3.2])
-        result = 100 * np.mean(
-            2 * np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred) + 1e-8)
-        )
-        assert result >= 0
-        assert not np.isnan(result)
-
-
 class TestLeakagePrevention:
     """Regression tests for the leakage fixes (H4 oil_lag groupby, H5 val
     target filter, H6 causal oil fill)."""
@@ -233,3 +214,27 @@ class TestLeakagePrevention:
         # interpolated toward 80.0 (which would use a future value).
         assert out.loc[out["date"] == pd.Timestamp("2022-01-02"), "dcoilwtico"].iloc[0] == 50.0
         assert out.loc[out["date"] == pd.Timestamp("2022-01-03"), "dcoilwtico"].iloc[0] == 50.0
+
+    def test_oil_fill_does_not_leak_across_groups(self):
+        """The merged frame is ordered by (store, family, date): a row-level
+        ffill would fill a non-first group's leading NaNs (dates before the
+        first oil observation) with the PREVIOUS group's last row — a LATER
+        date's price. The fill must happen on the daily series so those dates
+        get the EARLIEST known price instead."""
+        from foresight.preprocess import merge_external
+
+        dates = pd.date_range("2022-01-01", periods=4, freq="D")
+        # Oil coverage starts on 2022-01-03; 01-01/01-02 have no observation.
+        oil = pd.DataFrame({"date": dates[2:], "dcoilwtico": [70.0, 80.0]})
+        base = pd.DataFrame(
+            {
+                "date": list(dates) * 2,
+                "store_nbr": [1] * 4 + [2] * 4,
+                "family": ["GROCERY"] * 8,
+            }
+        )
+        out = merge_external(base, oil, None)
+        s2 = out[out["store_nbr"] == 2].sort_values("date")
+        # Store 2's leading dates must be back-filled from the earliest known
+        # price (70.0), never with 80.0 (store 1's last row — a future date).
+        assert s2["dcoilwtico"].tolist() == [70.0, 70.0, 70.0, 80.0]

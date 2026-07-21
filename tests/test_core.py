@@ -11,6 +11,7 @@ Covers paths that previously had no direct test coverage:
 """
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -209,8 +210,12 @@ class TestComputeMetrics:
 
 
 class TestEvaluateHelpers:
+    """evaluate.py imports matplotlib at module level, which is not part of the
+    lightweight CI test deps — skip these tests when it is missing."""
+
     def test_load_results_missing_file(self, tmp_path, monkeypatch):
         """load_results returns {} when the JSON file does not exist."""
+        pytest.importorskip("matplotlib")
         import foresight.evaluate as ev
 
         monkeypatch.setattr(ev, "MODEL_RESULTS_JSON", tmp_path / "nonexistent.json")
@@ -219,6 +224,7 @@ class TestEvaluateHelpers:
 
     def test_load_results_valid_json(self, tmp_path, monkeypatch):
         """load_results reads a valid JSON file."""
+        pytest.importorskip("matplotlib")
         import foresight.evaluate as ev
 
         results_file = tmp_path / "model_results.json"
@@ -230,6 +236,7 @@ class TestEvaluateHelpers:
 
     def test_print_metrics_table_handles_empty(self):
         """print_metrics_table should not crash on empty results."""
+        pytest.importorskip("matplotlib")
         from foresight.evaluate import print_metrics_table
 
         all_metrics = print_metrics_table({})
@@ -237,6 +244,7 @@ class TestEvaluateHelpers:
 
     def test_print_metrics_table_handles_none_mae(self):
         """print_metrics_table gracefully handles None metrics (e.g. Prophet on Windows)."""
+        pytest.importorskip("matplotlib")
         from foresight.evaluate import print_metrics_table
 
         results = {
@@ -314,9 +322,7 @@ class TestMergeExternal:
     def test_no_holidays_gives_zero_flag(self):
         from foresight.preprocess import merge_external
 
-        base = pd.DataFrame(
-            {"date": pd.to_datetime(["2024-01-01"]), "store_nbr": [1]}
-        )
+        base = pd.DataFrame({"date": pd.to_datetime(["2024-01-01"]), "store_nbr": [1]})
         out = merge_external(base, None, None)
         assert (out["is_holiday"] == 0).all()
 
@@ -343,13 +349,18 @@ class TestMergeExternal:
 
 
 class TestFindBestModel:
+    """predict.py imports torch at module level, which is deliberately absent
+    from the lightweight CI test deps — skip these tests when it is missing."""
+
     def test_returns_none_when_no_file(self, tmp_path, monkeypatch):
+        pytest.importorskip("torch")
         import foresight.predict as pred
 
         monkeypatch.setattr(pred, "MODEL_RESULTS_JSON", tmp_path / "missing.json")
         assert pred.find_best_model() is None
 
     def test_returns_lowest_mae_model(self, tmp_path, monkeypatch):
+        pytest.importorskip("torch")
         import foresight.predict as pred
 
         results_file = tmp_path / "model_results.json"
@@ -363,6 +374,7 @@ class TestFindBestModel:
         assert pred.find_best_model() == "lstm"
 
     def test_skips_none_mae(self, tmp_path, monkeypatch):
+        pytest.importorskip("torch")
         import foresight.predict as pred
 
         results_file = tmp_path / "model_results.json"
@@ -375,6 +387,111 @@ class TestFindBestModel:
         results_file.write_text(json.dumps(data), encoding="utf-8")
         monkeypatch.setattr(pred, "MODEL_RESULTS_JSON", results_file)
         assert pred.find_best_model() == "xgboost"
+
+
+class TestPredictMainLengthMismatch:
+    """Regression test: when the model returns fewer predictions than there are
+    validation rows (e.g. a series too short to form an encoder window),
+    predict.main() must truncate instead of crashing — the length check has to
+    run BEFORE the `val_df["sales_log_pred"] = y_pred` assignment, because
+    pandas raises ValueError on a length mismatch at assignment time."""
+
+    def test_mismatched_prediction_length_is_truncated(self, tmp_path, monkeypatch):
+        pytest.importorskip("torch")
+        import foresight.predict as pred
+
+        dates = pd.date_range("2024-01-01", periods=20, freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "store_nbr": 1,
+                "family": "GROCERY",
+                "sales_log": np.log1p(np.arange(20, dtype=float) + 10),
+            }
+        )
+        input_csv = tmp_path / "features.csv"
+        df.to_csv(input_csv, index=False)
+        output_csv = tmp_path / "predictions.csv"
+
+        # Simulate a model that emits fewer predictions than validation rows.
+        monkeypatch.setattr(
+            pred, "predict_model", lambda d, name, min_target_date=None: np.array([0.5])
+        )
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "predict",
+                "--input",
+                str(input_csv),
+                "--model",
+                "xgboost",
+                "--val_days",
+                "4",
+                "--output",
+                str(output_csv),
+            ],
+        )
+        pred.main()  # must not raise ValueError
+
+        out = pd.read_csv(output_csv)
+        assert len(out) == 1
+        assert out["sales_log_pred"].tolist() == [0.5]
+
+
+# ---------------------------------------------------------------------------
+# train_baseline — model_results.json upsert
+# ---------------------------------------------------------------------------
+
+
+class TestTrainBaselineResultsUpsert:
+    """Regression test: train_baseline.main() must merge baseline_results into
+    the existing model_results.json (read-modify-write) instead of overwriting
+    the whole file and silently deleting lstm_results / transformer_results."""
+
+    def test_main_preserves_existing_dl_results(self, tmp_path, monkeypatch):
+        pytest.importorskip("xgboost")
+        import foresight.train_baseline as tb
+
+        # Feature CSV just needs enough rows for the time-based split.
+        dates = pd.date_range("2024-01-01", periods=40, freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "store_nbr": 1,
+                "family": "GROCERY",
+                "sales_log": np.log1p(np.arange(40, dtype=float) + 10),
+                "onpromotion": 0,
+            }
+        )
+        input_csv = tmp_path / "features.csv"
+        df.to_csv(input_csv, index=False)
+
+        results_json = tmp_path / "model_results.json"
+        results_json.write_text(
+            json.dumps(
+                {
+                    "lstm_results": [{"model": "lstm", "mae": 0.3}],
+                    "transformer_results": [{"model": "transformer", "mae": 0.4}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(tb, "MODEL_RESULTS_JSON", results_json)
+
+        # Skip real training — only the results-JSON write is under test.
+        fake_xgb = {"model": "xgboost", "mae": 0.5, "rmse": 0.6, "mape": 1.0, "smape": 1.0}
+        fake_prophet = {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
+        monkeypatch.setattr(tb, "train_xgboost", lambda train, val: (None, fake_xgb))
+        monkeypatch.setattr(tb, "train_prophet", lambda train, val: (None, fake_prophet))
+        monkeypatch.setattr(sys, "argv", ["train_baseline", "--input", str(input_csv)])
+
+        tb.main()
+
+        saved = json.loads(results_json.read_text(encoding="utf-8"))
+        assert saved["lstm_results"] == [{"model": "lstm", "mae": 0.3}]
+        assert saved["transformer_results"] == [{"model": "transformer", "mae": 0.4}]
+        assert saved["baseline_results"] == [fake_xgb, fake_prophet]
 
 
 # ---------------------------------------------------------------------------

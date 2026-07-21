@@ -29,8 +29,8 @@ from foresight.logging_setup import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
-# Ensure images/ exists
-IMAGES_DIR.mkdir(exist_ok=True)
+# Ensure images/ exists (parents=True: tolerate missing intermediate dirs)
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_results():

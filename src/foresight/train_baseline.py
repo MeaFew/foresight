@@ -139,9 +139,16 @@ def main():
     _, prophet_metrics = train_prophet(train, val)
     results.append(prophet_metrics)
 
-    # Save results
+    # Upsert into the shared results JSON (read-modify-write, same as the DL
+    # trainers in train_common.py) so existing lstm_results / transformer_results
+    # are preserved instead of being silently wiped by a full-file overwrite.
+    all_results = {}
+    if MODEL_RESULTS_JSON.exists():
+        with open(MODEL_RESULTS_JSON) as f:
+            all_results = json.load(f)
+    all_results["baseline_results"] = results
     with open(MODEL_RESULTS_JSON, "w") as f:
-        json.dump({"baseline_results": results}, f, indent=2)
+        json.dump(all_results, f, indent=2)
     logger.info(f"\nResults saved: {MODEL_RESULTS_JSON}")
 
 

@@ -70,12 +70,12 @@ def main():
     here = Path(__file__).resolve().parent
 
     steps = [
-        ("Preprocessing", ["python", "-m", "foresight.preprocess"]),
-        ("Feature Engineering", ["python", "-m", "foresight.feature_engineering"]),
-        ("Baseline Training (XGBoost)", ["python", "-m", "foresight.train_baseline"]),
-        ("LSTM Training", ["python", "-m", "foresight.train_lstm", *dl_flags]),
-        ("Transformer Training", ["python", "-m", "foresight.train_transformer", *dl_flags]),
-        ("Evaluation", ["python", "-m", "foresight.evaluate"]),
+        ("Preprocessing", [sys.executable, "-m", "foresight.preprocess"]),
+        ("Feature Engineering", [sys.executable, "-m", "foresight.feature_engineering"]),
+        ("Baseline Training (XGBoost)", [sys.executable, "-m", "foresight.train_baseline"]),
+        ("LSTM Training", [sys.executable, "-m", "foresight.train_lstm", *dl_flags]),
+        ("Transformer Training", [sys.executable, "-m", "foresight.train_transformer", *dl_flags]),
+        ("Evaluation", [sys.executable, "-m", "foresight.evaluate"]),
     ]
 
     print("Multivariate Time Series Forecasting - Full Pipeline")

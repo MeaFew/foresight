@@ -94,6 +94,10 @@ def _load_dl_and_predict(model_path: Path, model_cls, df: pd.DataFrame, min_targ
         df,
         encoder=meta["encoders"],
         scalers=meta["scalers"],
+        # Pin the feature order to the training-time columns — recomputing it
+        # from the inference frame would silently misalign the num tensor if
+        # the input column order differs from training.
+        numeric_cols=meta["numeric_cols"],
         min_target_date=min_target_date,
     )
     loader = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
@@ -205,26 +209,25 @@ def main():
 
     # DL predictions now align 1:1 with the true validation rows (filtered to
     # targets on/after val_start). Baseline (XGBoost/Prophet) already aligns.
-    val_df["sales_log_pred"] = y_pred
+    # If lengths differ (e.g. a series too short to form an encoder window),
+    # truncate to the common length BEFORE assigning — pandas raises ValueError
+    # when the assigned array is longer/shorter than the frame. A mismatch on a
+    # real validation set usually signals an upstream bug, so warn loudly
+    # instead of hiding it.
+    y_pred_arr = np.asarray(y_pred)
+    if len(y_pred_arr) != len(val_df):
+        logger.info(
+            f"[WARN] length mismatch: val_df={len(val_df)} vs y_pred={len(y_pred_arr)}; "
+            "truncating to common length. Investigate the upstream alignment."
+        )
+        min_len = min(len(val_df), len(y_pred_arr))
+        val_df = val_df.iloc[:min_len].copy()
+        y_pred_arr = y_pred_arr[:min_len]
+    val_df["sales_log_pred"] = y_pred_arr
     if "sales_log" in val_df.columns:
         y_true = val_df["sales_log"].values
-        y_pred_arr = np.array(y_pred)
-        # If lengths differ (e.g. a series too short to form an encoder window),
-        # truncate to the common length rather than silently misaligning rows.
-        # A mismatch on a real validation set usually signals an upstream bug,
-        # so warn loudly instead of hiding it.
-        if len(y_true) != len(y_pred_arr):
-            logger.info(
-                f"[WARN] length mismatch: y_true={len(y_true)} vs y_pred={len(y_pred_arr)}; "
-                "truncating to common length. Investigate the upstream alignment."
-            )
-            min_len = min(len(y_true), len(y_pred_arr))
-            y_true = y_true[:min_len]
-            y_pred_arr = y_pred_arr[:min_len]
-            val_df = val_df.iloc[:min_len].copy()
     else:
         y_true = None
-        y_pred_arr = y_pred
 
     # Save predictions
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
