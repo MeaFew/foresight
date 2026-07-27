@@ -22,18 +22,21 @@
 
 ## 核心结论
 
-> **XGBoost 最优：MAE = 0.257、RMSE = 0.381**（log1p 空间）。
-> 一个诚实的负面结果——**深度学习（LSTM / Transformer）在本数据集上并未超过梯度提升基线**。
+> **XGBoost 最优：MAE = 0.256、RMSE = 0.380**（log1p 空间），**MASE = 0.70**——比「直接抄上周同期」的朴素基线误差低约 30%。
+> 一个诚实的负面结果——**深度学习（LSTM / Transformer）在本数据集上并未超过梯度提升基线**；但所有模型都显著优于 seasonal-naive 朴素基线（MASE < 1）。
 
-本管线在特征工程充分（40+ 维 lag / rolling / 节假日 / 油价特征）的表格类时序数据上系统对比了 XGBoost、Prophet、LSTM、Transformer。结论明确：**手工特征覆盖长程依赖后，梯度提升对结构化特征利用更高效，DL 未必优于基线**——这本身是有价值的工程发现。
+本管线在特征工程充分（40+ 维 lag / rolling / 节假日 / 油价特征）的表格类时序数据上系统对比了 seasonal-naive（t-7）、XGBoost、Prophet、LSTM、Transformer。结论明确：**手工特征覆盖长程依赖后，梯度提升对结构化特征利用更高效，DL 未必优于基线**——这本身是有价值的工程发现。
 
-| 模型 | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE | 数据集 |
-|------|-------|--------|--------|-------|--------|
-| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% | 完整预处理训练集 + 尾部 16 天验证 |
-| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 同一时间验证窗（GPU 训练） |
-| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 同一时间验证窗（GPU 训练） |
-| Prophet | — | — | — | — | *需 pystan 编译工具链，已在 Docker/Linux CI 验证通过* |
+| 模型 | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE | MASE ↓ | 数据集 |
+|------|-------|--------|--------|-------|--------|--------|
+| Seasonal Naive (t-7) | 0.361 | 0.569 | 17.61% | 23.31% | 0.991 | 完整预处理训练集 + 尾部 16 天验证 |
+| **XGBoost** | **0.256** | **0.380** | **11.98%** | 39.46% | **0.702** | 完整预处理训练集 + 尾部 16 天验证 |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 0.738* | 同一时间验证窗（GPU 训练） |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 0.774* | 同一时间验证窗（GPU 训练） |
+| Prophet | — | — | — | — | — | *需 pystan 编译工具链，已在 Docker/Linux CI 验证通过* |
 
+> **Seasonal-naive 与 MASE**：朴素基线在每条 (store, family) 序列上预测 ŷ(t) = y(t−7)，与 lag 特征模型同属「以真实近期历史为条件」的评估口径。MASE = 验证集 MAE / 训练段内 seasonal-naive 平均绝对误差（全序列池化，scale = 0.365，log1p 空间）；MASE < 1 即优于「抄上周」。*LSTM/Transformer 的 MASE 由聚合 MAE 与池化 scale 推导（GPU 运行的逐行预测未持久化）。详见 `reports/seasonal_naive_baseline.md`。
+>
 > LSTM 与 Transformer 均已按**三处泄漏修复**重跑，修复逻辑通过 `tests/test_pipeline.py::TestLeakagePrevention` 验证。指标以 `reports/model_results.json` 为准。
 
 <p align="center">

@@ -38,6 +38,86 @@ def mape(y_true, y_pred):
     return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
 
 
+def seasonal_naive_scale(y, seasonality: int = 7) -> float:
+    """In-sample MAE of the seasonal-naive forecast on a single series.
+
+    This is the MASE denominator (Hyndman & Koehler 2006): the mean absolute
+    error of predicting ``y[t] = y[t - seasonality]`` over the TRAINING
+    (in-sample) portion of the series. Dividing a model's holdout MAE by this
+    scale yields a unit-free error where 1.0 means "as good as repeating the
+    last observed week".
+
+    Returns NaN when the series has ``seasonality`` or fewer observations
+    (no seasonal difference exists to average over).
+    """
+    y = np.asarray(y, dtype=np.float64)
+    if y.size <= seasonality:
+        return float("nan")
+    return float(np.mean(np.abs(y[seasonality:] - y[:-seasonality])))
+
+
+def pooled_seasonal_naive_scale(
+    df: pd.DataFrame,
+    target_col: str = "sales_log",
+    group_cols: tuple = ("store_nbr", "family"),
+    seasonality: int = 7,
+) -> float:
+    """Pooled in-sample seasonal-naive MAE across a panel of series.
+
+    Computes the within-group seasonal difference ``y[t] - y[t-seasonality]``
+    for every (store, family) series over the given frame (typically the
+    training split) and returns the pooled mean absolute difference. This is
+    the panel-data MASE denominator: it lets a single aggregate MASE be
+    derived for ANY model from its aggregate holdout MAE alone
+    (``MASE = MAE_model / pooled_scale``), so deep-learning models whose
+    per-row predictions are not persisted can still be compared on the same
+    scale as the tabular baselines.
+    """
+    order = [c for c in (*group_cols, "date") if c in df.columns]
+    sorted_df = df.sort_values(order)
+    diffs = sorted_df.groupby(list(group_cols), sort=False)[target_col].diff(seasonality).dropna()
+    if diffs.empty:
+        return float("nan")
+    return float(np.abs(diffs).mean())
+
+
+def mase(y_true, y_pred, scale: float) -> float:
+    """Mean Absolute Scaled Error: holdout MAE divided by *scale*.
+
+    *scale* is the in-sample seasonal-naive MAE (see ``seasonal_naive_scale``
+    for a single series or ``pooled_seasonal_naive_scale`` for a panel).
+    MASE < 1.0 means the model beats the seasonal-naive benchmark; > 1.0
+    means the naive benchmark is better. Returns NaN when the scale is not
+    a positive finite number (division by zero would be meaningless).
+    """
+    y_true = np.asarray(y_true, dtype=np.float64)
+    y_pred = np.asarray(y_pred, dtype=np.float64)
+    if not np.isfinite(scale) or scale <= 0:
+        return float("nan")
+    return float(np.mean(np.abs(y_true - y_pred)) / scale)
+
+
+def rmsse(y_true, y_pred, y_train, seasonality: int = 7) -> float:
+    """Root Mean Squared Scaled Error (M5 competition metric).
+
+    RMSE of the model divided by the RMSE of the in-sample seasonal-naive
+    forecast on ``y_train``. Like MASE, 1.0 is the naive-benchmark level, but
+    squaring penalizes large errors more strongly. Returns NaN when the
+    training series is too short or the naive denominator is zero (a
+    perfectly periodic training series).
+    """
+    y_true = np.asarray(y_true, dtype=np.float64)
+    y_pred = np.asarray(y_pred, dtype=np.float64)
+    y_train = np.asarray(y_train, dtype=np.float64)
+    if y_train.size <= seasonality:
+        return float("nan")
+    denom = float(np.mean((y_train[seasonality:] - y_train[:-seasonality]) ** 2))
+    if not np.isfinite(denom) or denom <= 0:
+        return float("nan")
+    rmse = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+    return float(rmse / np.sqrt(denom))
+
+
 def time_train_val_split(df: pd.DataFrame, val_days: int):
     """Split a time-sorted frame into train / validation by trailing days.
 

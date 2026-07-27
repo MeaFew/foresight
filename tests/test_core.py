@@ -480,8 +480,24 @@ class TestTrainBaselineResultsUpsert:
         monkeypatch.setattr(tb, "MODEL_RESULTS_JSON", results_json)
 
         # Skip real training — only the results-JSON write is under test.
+        fake_snaive = {
+            "model": "seasonal_naive",
+            "mae": 0.7,
+            "rmse": 0.8,
+            "mape": 2.0,
+            "smape": 2.0,
+            "mase": 1.0,
+            "rmsse": 1.0,
+            "mase_scale": 0.7,
+        }
         fake_xgb = {"model": "xgboost", "mae": 0.5, "rmse": 0.6, "mape": 1.0, "smape": 1.0}
         fake_prophet = {"model": "prophet", "mae": None, "rmse": None, "mape": None, "smape": None}
+        # NaN scales: main() must then leave xgb metrics untouched (no mase key).
+        monkeypatch.setattr(
+            tb,
+            "eval_seasonal_naive",
+            lambda train, val: (fake_snaive, float("nan"), float("nan")),
+        )
         monkeypatch.setattr(tb, "train_xgboost", lambda train, val: (None, fake_xgb))
         monkeypatch.setattr(tb, "train_prophet", lambda train, val: (None, fake_prophet))
         monkeypatch.setattr(sys, "argv", ["train_baseline", "--input", str(input_csv)])
@@ -491,7 +507,7 @@ class TestTrainBaselineResultsUpsert:
         saved = json.loads(results_json.read_text(encoding="utf-8"))
         assert saved["lstm_results"] == [{"model": "lstm", "mae": 0.3}]
         assert saved["transformer_results"] == [{"model": "transformer", "mae": 0.4}]
-        assert saved["baseline_results"] == [fake_xgb, fake_prophet]
+        assert saved["baseline_results"] == [fake_snaive, fake_xgb, fake_prophet]
 
 
 # ---------------------------------------------------------------------------

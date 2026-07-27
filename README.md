@@ -19,15 +19,16 @@
 
 ## Headline
 
-> **XGBoost wins: MAE = 0.257 and RMSE = 0.381 in log1p space.** The useful negative result is that LSTM and Transformer do not beat the gradient-boosted baseline on this structured forecasting task after leakage fixes.
+> **XGBoost wins: MAE = 0.256 and RMSE = 0.380 in log1p space — MASE 0.70, i.e. ~30% better than repeating last week.** The useful negative result is that LSTM and Transformer do not beat the gradient-boosted baseline on this structured forecasting task after leakage fixes; all models do beat the seasonal-naive benchmark (MASE < 1).
 
-The pipeline systematically benchmarks XGBoost, Prophet, LSTM, and Transformer on tabular retail time-series data with heavy feature engineering (40+ lag / rolling / holiday / oil-price features). Once hand-crafted features cover the long-range dependencies, gradient boosting exploits those structured features more efficiently — deep learning does not necessarily beat a well-built baseline, which is itself a valuable engineering finding.
+The pipeline systematically benchmarks a seasonal-naive (t-7) baseline, XGBoost, Prophet, LSTM, and Transformer on tabular retail time-series data with heavy feature engineering (40+ lag / rolling / holiday / oil-price features). Once hand-crafted features cover the long-range dependencies, gradient boosting exploits those structured features more efficiently — deep learning does not necessarily beat a well-built baseline, which is itself a valuable engineering finding.
 
-| Model | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE |
-|-------|------:|-------:|-------:|------:|
-| **XGBoost** | **0.257** | **0.381** | **12.02%** | 39.47% |
-| LSTM | 0.269 | 0.399 | 12.71% | 40.66% |
-| Transformer | 0.282 | 0.410 | 12.76% | 40.61% |
+| Model | MAE ↓ | RMSE ↓ | MAPE ↓ | sMAPE | MASE ↓ |
+|-------|------:|-------:|-------:|------:|-------:|
+| Seasonal Naive (t-7) | 0.361 | 0.569 | 17.61% | 23.31% | 0.991 |
+| **XGBoost** | **0.256** | **0.380** | **11.98%** | 39.46% | **0.702** |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 0.738 |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 0.774 |
 
 <p align="center">
   <img src="images/forecast_comparison.png" alt="XGBoost, LSTM, and Transformer forecast comparison">
@@ -41,10 +42,10 @@ End-to-end pipeline for multivariate time series forecasting. Benchmarks classic
 
 ## Key Highlights
 
-- **Baseline Models**: XGBoost Regressor + Facebook Prophet for benchmarking
+- **Baseline Models**: Seasonal-naive (t-7), XGBoost Regressor + Facebook Prophet for benchmarking
 - **Deep Learning**: LSTM with embedding layers + Transformer with multi-head self-attention and positional encoding
 - **Feature Engineering**: Lag features (1/7/14/28/364d), rolling statistics, cyclical seasonal encodings, promo aggregates
-- **Evaluation**: MAE, RMSE, MAPE, sMAPE across all models
+- **Evaluation**: MAE, RMSE, MAPE, sMAPE + MASE/RMSSE scaled errors vs. the seasonal-naive benchmark
 - **Delivery**: Streamlit dashboard comparing forecast vs. actual
 
 ## Leakage Prevention
@@ -159,16 +160,21 @@ make verify
 
 ### Evaluation protocol
 
-Kaggle scores original-scale sales with RMSLE, while this repository currently reports MAE, RMSE, MAPE, and sMAPE in log1p(sales) space. These protocols are not directly comparable, so this README shows only local results backed by `reports/model_results.json` on the shared chronological holdout; unsupported RMSLE and leaderboard estimates have been removed.
+Kaggle scores original-scale sales with RMSLE, while this repository currently reports MAE, RMSE, MAPE, and sMAPE in log1p(sales) space, plus MASE/RMSSE against a seasonal-naive (t-7) benchmark. These protocols are not directly comparable, so this README shows only local results backed by `reports/model_results.json` on the shared chronological holdout; unsupported RMSLE and leaderboard estimates have been removed.
+
+**Seasonal-naive & MASE**: the naive baseline predicts ŷ(t) = y(t−7) per (store, family) series — the same "condition on actual recent history" protocol as the lag-feature models. MASE = holdout MAE / in-sample seasonal-naive MAE (pooled over all training series, scale = 0.365 in log1p space); MASE < 1 means better than repeating last week. Details: `reports/seasonal_naive_baseline.md`.
 
 ### Results
 
-| Model | MAE | RMSE | MAPE | sMAPE | Dataset |
-|-------|-----|------|------|--------|---------|
-| XGBoost | **0.257** | **0.381** | **12.02%** | 39.47% | Full processed training set, final 16-day holdout |
-| Prophet (aggregated) | — | — | — | — | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
-| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | Same chronological holdout |
-| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | Same chronological holdout |
+| Model | MAE | RMSE | MAPE | sMAPE | MASE | Dataset |
+|-------|-----|------|------|--------|------|---------|
+| Seasonal Naive (t-7) | 0.361 | 0.569 | 17.61% | 23.31% | 0.991 | Full processed training set, final 16-day holdout |
+| XGBoost | **0.256** | **0.380** | **11.98%** | 39.46% | **0.702** | Full processed training set, final 16-day holdout |
+| Prophet (aggregated) | — | — | — | — | — | *(requires pystan compilation toolchain; verified in Docker/Linux CI)* |
+| LSTM | 0.269 | 0.399 | 12.71% | 40.66% | 0.738* | Same chronological holdout |
+| Transformer | 0.282 | 0.410 | 12.76% | 40.61% | 0.774* | Same chronological holdout |
+
+\* LSTM/Transformer MASE is derived from their aggregate MAE and the pooled seasonal-naive scale (per-row predictions from the GPU runs are not persisted).
 
 > **LSTM/Transformer metrics** are actual full-dataset results produced by PyTorch Lightning training on the same validation window as XGBoost. Run `make train-lstm` and `make train-transformer` to regenerate them; metrics are written to `reports/model_results.json` under `"lstm_results"` / `"transformer_results"` keys. The XGBoost MAE in this table is cross-checked against `reports/model_results.json` by `python -m foresight.audit_consistency` (`make audit`).
 

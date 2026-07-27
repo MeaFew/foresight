@@ -42,13 +42,26 @@ def load_results():
         return json.load(f)
 
 
+def _find_mase_scale(results):
+    """Locate the in-sample seasonal-naive MAE scale persisted by train_baseline.
+
+    Lets us derive MASE for entries that don't carry it (e.g. LSTM/Transformer
+    results produced by earlier GPU runs): MASE = MAE / scale.
+    """
+    for entry in results.get("baseline_results", []):
+        if entry.get("model") == "seasonal_naive" and entry.get("mase_scale"):
+            return entry["mase_scale"]
+    return None
+
+
 def print_metrics_table(results):
     """Print a formatted comparison table."""
-    logger.info("\n" + "=" * 70)
+    mase_scale = _find_mase_scale(results)
+    logger.info("\n" + "=" * 80)
     logger.info("MODEL COMPARISON")
-    logger.info("=" * 70)
-    logger.info(f"{'Model':<20} {'MAE':>8} {'RMSE':>8} {'MAPE':>8} {'sMAPE':>8}")
-    logger.info("-" * 70)
+    logger.info("=" * 80)
+    logger.info(f"{'Model':<20} {'MAE':>8} {'RMSE':>8} {'MAPE':>8} {'sMAPE':>8} {'MASE':>8}")
+    logger.info("-" * 80)
 
     all_metrics = []
     for key in ["baseline_results", "lstm_results", "transformer_results"]:
@@ -59,13 +72,18 @@ def print_metrics_table(results):
             rmse = entry.get("rmse")
             mape = entry.get("mape_pct") if "mape_pct" in entry else entry.get("mape")
             smape = entry.get("smape")
+            mase_val = entry.get("mase")
+            # Derive MASE for entries that predate the seasonal-naive baseline.
+            if mase_val is None and mae is not None and mase_scale:
+                mase_val = mae / mase_scale
             # Handle None/null metrics (e.g. Prophet unavailable on Windows)
             mae_str = f"{mae:>8.4f}" if mae is not None else "       --"
             rmse_str = f"{rmse:>8.4f}" if rmse is not None else "       --"
             # MAPE is already in percentage (0-100), format with f and append literal %
             mape_str = f"{mape:>7.2f}%" if mape is not None else "      --"
             smape_str = f"{smape:>7.2f}%" if smape is not None else "      --"
-            logger.info(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str}")
+            mase_str = f"{mase_val:>8.4f}" if mase_val is not None else "       --"
+            logger.info(f"{name:<20} {mae_str} {rmse_str} {mape_str} {smape_str} {mase_str}")
             all_metrics.append(
                 {
                     "model": name,
@@ -73,10 +91,13 @@ def print_metrics_table(results):
                     "rmse": rmse if rmse is not None else float("nan"),
                     "mape": mape if mape is not None else float("nan"),
                     "smape": smape if smape is not None else float("nan"),
+                    "mase": mase_val if mase_val is not None else float("nan"),
                 }
             )
 
-    logger.info("-" * 70)
+    logger.info("-" * 80)
+    if mase_scale:
+        logger.info(f"MASE scale (in-sample seasonal-naive MAE, log1p): {mase_scale:.4f}")
     logger.info("")
     return all_metrics
 
