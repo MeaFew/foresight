@@ -1,4 +1,4 @@
-.PHONY: all setup preprocess features train-baseline train-lstm train-transformer train-all evaluate dashboard verify clean
+.PHONY: all setup preprocess features train-baseline train-lstm train-transformer train-all evaluate backtest dashboard verify clean
 
 PYTHON := python
 
@@ -32,6 +32,10 @@ train-all: train-baseline train-lstm train-transformer
 
 evaluate:
 	$(PYTHON) -m foresight.evaluate
+
+# Rolling-origin (walk-forward) backtest of XGBoost + seasonal-naive
+backtest:
+	$(PYTHON) -m foresight.backtest
 
 # ── Dashboard ─────────────────────────────────────────────────────
 dashboard:

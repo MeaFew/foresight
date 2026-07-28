@@ -141,6 +141,7 @@ make verify
 │   ├── train_transformer.py       # Transformer with positional encoding
 │   ├── train_common.py            # Shared DL training/eval plumbing (Lightning)
 │   ├── evaluate.py                # Model comparison & residual analysis
+│   ├── backtest.py                # Rolling-origin (walk-forward) backtest
 │   ├── predict.py                 # Model loading and inference
 │   ├── metrics.py                 # MAE/RMSE/MAPE/sMAPE, TimeSeriesDataset
 │   ├── metrics_utils.py           # torch-free mape/smape (lightweight testability)
@@ -151,6 +152,7 @@ make verify
 │   ├── test_core.py               # Core-module unit tests
 │   ├── test_pipeline.py           # Unit + integration tests
 │   ├── test_metrics.py            # mape/smape numerical contract + TimeSeriesDataset consistency
+│   ├── test_backtest.py           # Rolling-origin split geometry, leakage contract, MASE hand-check
 │   └── test_audit_consistency.py  # README/artifact consistency audit tests
 ├── Makefile                       # Workflow orchestration
 └── requirements.txt
@@ -203,6 +205,43 @@ An early single-threaded DataLoader (`num_workers=0`) left the GPU waiting betwe
 LSTM comes close to XGBoost (MAE gap 0.012); Transformer lags slightly. Improvement ideas: longer training, a larger `d_model`, or dedicated time-series architectures such as N-BEATS / TFT.
 
 </details>
+
+## Rolling-Origin Backtest
+
+A single chronological holdout is one draw from one window — the score can be lucky or unlucky depending on which 16 days happen to be at the tail. Random k-fold CV is **not** a valid alternative for time series: shuffling puts future rows into the training set and leaks autocorrelated neighbours across the fold boundary, biasing scores optimistically. The standard fix is **rolling-origin (walk-forward) evaluation**: an expanding training window re-scored on several non-overlapping future horizons. `src/foresight/backtest.py` retrains XGBoost from scratch on 5 origins (16-day horizon each, same as the single holdout) and re-scores the seasonal-naive baseline per fold, so the MASE denominator (in-sample naive MAE) is recomputed on each fold's own training window:
+
+```
+date ────────────────────────────────────────────────────────►
+fold 1: [════════ train ════════][val]   val 2017-05-28 ~ 06-12
+fold 2: [════════ train ════════════][val]   val 2017-06-13 ~ 06-28
+fold 3: [════════ train ═════════════════][val]   val 2017-06-29 ~ 07-14
+fold 4: [════════ train ═════════════════════][val]   val 2017-07-15 ~ 07-30
+fold 5: [════════ train ═════════════════════════][val]   val 2017-07-31 ~ 08-15
+                                     ▲ train never touches its val window or anything after
+```
+
+Per-fold metrics (log1p space; fold 5 is exactly the single-holdout window and reproduces its numbers — MAE 0.2562 / MASE 0.7023 vs. 0.256 / 0.702 — as a built-in consistency check):
+
+| Fold | Val window | XGB MAE | XGB RMSE | XGB MAPE | XGB MASE | Naive MASE | MASE scale |
+|------|-----------|---------|----------|----------|----------|------------|------------|
+| 1 | 2017-05-28 ~ 06-12 | 0.255 | 0.379 | 12.32% | 0.696 | 0.955 | 0.366 |
+| 2 | 2017-06-13 ~ 06-28 | 0.254 | 0.378 | 12.18% | 0.694 | 0.927 | 0.366 |
+| 3 | 2017-06-29 ~ 07-14 | 0.246 | 0.369 | 11.90% | 0.674 | 0.932 | 0.366 |
+| 4 | 2017-07-15 ~ 07-30 | 0.250 | 0.374 | 11.92% | 0.685 | 0.882 | 0.365 |
+| 5 | 2017-07-31 ~ 08-15 | 0.256 | 0.381 | 11.98% | 0.702 | 0.991 | 0.365 |
+
+Mean ± std across the 5 folds vs. the single-holdout numbers from the table above (full per-fold values in `reports/backtest_results.json`; reproduce with `make backtest`):
+
+| Metric | XGB rolling mean ± std | XGB single holdout | Single within ±1 std? |
+|--------|------------------------|--------------------|-----------------------|
+| MAE | 0.252 ± 0.004 | 0.256 | ✓ (0.96σ) |
+| RMSE | 0.376 ± 0.005 | 0.380 | ✓ (0.91σ) |
+| MAPE | 12.06% ± 0.18% | 11.98% | ✓ (−0.43σ) |
+| sMAPE | 39.30% ± 0.55% | 39.46% | ✓ (0.29σ) |
+| MASE | 0.690 ± 0.011 | 0.702 | ✗ — marginally outside (1.08σ) |
+| Naive MASE | 0.937 ± 0.040 | 0.991 | ✗ — marginally outside (1.34σ) |
+
+**Conclusion: the model is stable, the split was (very) slightly unlucky.** XGBoost fold-to-fold spread is tiny (MASE std ≈ 1.6% of the mean), so the ranking over the naive baseline is robust; the single-holdout MASE of 0.702 sits ~1.1σ above the rolling mean of 0.690, i.e. the final 16-day window was marginally harder than a typical window — the honest "model quality" number is **MASE ≈ 0.69 ± 0.01**, not a single point estimate.
 
 ## Data
 
